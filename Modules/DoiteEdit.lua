@@ -661,6 +661,14 @@ local function InitGroupDropdown(dd, data)
           end
         end
 
+        -- Custom auras: clear stale runtime data and auto-save when group changes
+        if d.type == "Custom" then
+          d._daCustomRuntime = {}
+          if condFrame and condFrame.cond_custom_function_save then
+            condFrame.cond_custom_function_save:Click()
+          end
+        end
+
         UIDropDownMenu_SetSelectedValue(dd, picked)
         UIDropDownMenu_SetText(picked, dd)
         CloseDropDownMenus()
@@ -1249,10 +1257,12 @@ DEFAULT_CUSTOM_FUNCTION_SOURCE = [[-- Define custom logic for this aura
 -- your code block must return the following:
 local show = true -- [boolean] true to show the icon, false to hide
 local texture = "Interface\\Icons\\Temp" -- [string] MPOWA icons available in "Interface\\Addons\\DoiteAuras\\Textures\\MPOWA\\AuraXX"
+
 local hideBackground = false -- [boolean] if true will hide the default background behind the icon texture
--- the following are optional:
+
 local remaining = nil -- [number] if present will display in the center of the icon
 local stacks = nil -- [number] if present will display in the bottom right of the icon
+
 return show, texture, hideBackground, remaining, stacks]]
 
 -- Share with other modules (e.g. DoiteConditions)
@@ -1792,7 +1802,8 @@ local function CreateConditionsUI()
   condFrame.cond_custom_function_edit:SetPoint("TOPLEFT", _Parent(), "TOPLEFT", 2, -5)
   condFrame.cond_custom_function_edit:SetPoint("TOPRIGHT", _Parent(), "TOPRIGHT", -2, -5)
   condFrame.cond_custom_function_edit:SetWidth((_Parent():GetWidth() or 260) - 4)
-  condFrame.cond_custom_function_edit:SetHeight(400)
+  condFrame.cond_custom_function_edit:SetHeight(500)
+  condFrame.cond_custom_function_edit:EnableMouse(true)
   if condFrame.cond_custom_function_edit.SetTextInsets then
     condFrame.cond_custom_function_edit:SetTextInsets(4, 4, 4, 4)
   end
@@ -1806,8 +1817,8 @@ local function CreateConditionsUI()
     for _ in string.gfind(txt, "\n") do
       lines = lines + 1
     end
-    local lineH = 12  -- approximate line height for GameFontHighlightSmall
-    local newH = math.max((lines + 2) * lineH, 180)
+    local lineH = 15  -- approximate line height for GameFontHighlightSmall
+    local newH = math.max((lines + 3) * lineH, 180)
     eb:SetHeight(newH)
     if _ReflowCondAreaHeight then
       _ReflowCondAreaHeight()
@@ -1823,10 +1834,13 @@ local function CreateConditionsUI()
     if arg1 and arg1 > 0 then
       sf:SetVerticalScroll(math.max(cur - step, 0))
     elseif arg1 and arg1 < 0 then
-      local child = sf.GetScrollChild and sf:GetScrollChild()
-      local childH = (child and child.GetHeight and child:GetHeight()) or 0
-      local frameH = sf:GetHeight() or 0
-      local maxScroll = math.max(childH - frameH, 0)
+      local sbName = sf:GetName() and (sf:GetName() .. "ScrollBar")
+      local sb = sbName and getglobal(sbName)
+      local maxScroll = 0
+      if sb and sb.GetMinMaxValues then
+        local _, hi = sb:GetMinMaxValues()
+        maxScroll = hi or 0
+      end
       sf:SetVerticalScroll(math.min(cur + step, maxScroll))
     end
   end)
