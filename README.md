@@ -4,7 +4,6 @@ Looking for WeakAuras in Vanilla WoW? DoiteAuras is a lightweight, condition-bas
 > [!IMPORTANT]
 >
 > **Vanilla 1.12 API is very limited. Therefore, this addon requires you to have the following mods to extend the API:**
-> - [SuperWoW](https://github.com/balakethelock/SuperWoW) installed.
 > - [Nampower](https://gitea.com/avitasia/nampower) installed.
 > - [UnitXP_SP3](https://codeberg.org/konaka/UnitXP_SP3) installed.
 
@@ -19,8 +18,9 @@ _Please respect the license note._
 - Custom dynamic time-tracking and ownership system for auras on the target
 - Custom icon glow visual effect, inspired by later clients
 - Custom animations for "soon off CD" (abilities)
-- Custom dynamic and static grouping system, collapsing towards a relative point or fixed
-- More to come.. _(bars, mouseover support, more features, setting options, skins)_
+- Custom dynamic and static grouping system, collapsing towards a relative point or fixed point
+- Custom code block input, for unlimited freedom
+- More to come.. _(bars, mouseover support, more features)_
 
 ## Tutorial & How-to instructions
 [![Watch the video](https://img.youtube.com/vi/L049puyYDV8/maxresdefault.jpg)](https://youtu.be/L049puyYDV8)
@@ -31,11 +31,15 @@ _Timestamps are available in the description._
 - `/da` or `/doite` or `/doiteauras`
 
 ## Shared exported builds (for inspiration or use)
-- Warrior [all stances]: [**LINK**](https://pastecode.io/s/vajoxwa6)
-- Druid [all forms]: [**LINK**](https://pastecode.io/s/g7bhkpjn)
-- Paladin [Seal Tracker]: [**LINK**](https://pastecode.io/s/b3ikammv)
-- Kara40 Boss Debuffs: [**LINK**](https://pastecode.io/s/473z2tgz)
-- Melee consumes: [**LINK**](https://pastecode.io/s/5yw61evm)
+- Warrior - By Doite [All stances]: [**LINK**](https://ghostbin.axel.org/paste/oapsc)
+- Druid - By Doite [All forms]: [**LINK**](https://ghostbin.axel.org/paste/t4fma)
+- Paladin - By Bertholdt [Seal Tracker]: [**LINK**](https://ghostbin.axel.org/paste/hphwt)
+- Mage - By Cancel / Terms: [**LINK**](https://ghostbin.axel.org/paste/jpx46)
+- Shaman - by Minta [Elemental]: [**LINK**](https://ghostbin.axel.org/paste/dfypt)
+- Kara40 Boss Debuffs - By Doite: [**LINK**](https://ghostbin.axel.org/paste/w8mtr)
+- Melee consumes - By Doite: [**LINK**](https://ghostbin.axel.org/paste/3e6re)
+- Caster consumes - By Doite: [**LINK**](https://ghostbin.axel.org/paste/swm4h)
+- Healer consumes - By Doite: [**LINK**] - SOON
 
 _To import - copy the text, press the import button inside DoiteAuras in-game and paste._
 
