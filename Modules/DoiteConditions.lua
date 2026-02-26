@@ -34,7 +34,6 @@ local GetComboPoints = GetComboPoints
 local GetNumTalentTabs = GetNumTalentTabs
 local GetNumTalents = GetNumTalents
 local GetTalentInfo = GetTalentInfo
-local _GetTime = GetTime
 local _GetAuraStacksOnUnit
 local _StacksPasses
 local str_find = string.find
@@ -151,7 +150,7 @@ end
 
 local function _Now()
 
-  return (_GetTime and _GetTime()) or 0
+  return (GetTime and GetTime()) or 0
 end
 
 -- Spell index cache (must be defined before any usage)
@@ -7427,7 +7426,7 @@ function DoiteConditions_OnUpdate(dt)
     local hasTE = false
 
     if te then
-      local now = _GetTime()
+      local now = GetTime()
       for _, slotC in pairs(te) do
         if slotC and slotC.endTime then
           local rem = slotC.endTime - now
