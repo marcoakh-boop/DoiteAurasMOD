@@ -50,50 +50,6 @@ local SOUND_FILES = {
   "wlaugh.ogg", "wolf5.ogg", "yeehaw.ogg"
 }
 
-local _sortedSoundFiles = nil
-local _soundDDReopenFrame = CreateFrame("Frame", "DoiteEditSoundDDReopenFrame")
-local _soundDDToReopen = nil
-
-_soundDDReopenFrame:Hide()
-_soundDDReopenFrame:SetScript("OnUpdate", function()
-  _soundDDReopenFrame:Hide()
-  if not _soundDDToReopen then
-    return
-  end
-  local dd = _soundDDToReopen
-  _soundDDToReopen = nil
-  if not dd or not dd.GetName then
-    return
-  end
-  ToggleDropDownMenu(nil, nil, dd, dd, 0, 0)
-end)
-
-local function DoiteEdit_ReopenSoundDDNextFrame(dd)
-  _soundDDToReopen = dd
-  _soundDDReopenFrame:Show()
-end
-
-local function DoiteEdit_GetSortedSoundFiles()
-  if _sortedSoundFiles then
-    return _sortedSoundFiles
-  end
-
-  local list = {}
-  local i
-  for i = 1, table.getn(SOUND_FILES) do
-    list[i] = SOUND_FILES[i]
-  end
-
-  table.sort(list, function(a, b)
-    a = string.lower(a or "")
-    b = string.lower(b or "")
-    return a < b
-  end)
-
-  _sortedSoundFiles = list
-  return _sortedSoundFiles
-end
-
 local function DoiteEdit_SetDropdownInteractive(dd, enabled)
   if not dd then
     return
@@ -137,91 +93,99 @@ local function DoiteEdit_InitSoundDropdown(dd, typeKey, eventKey, selectedValue)
   if not dd then
     return
   end
+
+  -- Keep selection on the dropdown itself so paging stays correct
+  dd._selectedSound = (selectedValue and selectedValue ~= "") and selectedValue or ""
+  dd._soundPage = dd._soundPage or 1
+
   ClearDropdown(dd)
-  local sounds = DoiteEdit_GetSortedSoundFiles()
-  local total = table.getn(sounds)
-  local perPage = 10
-  local maxPage = math.max(1, math.ceil(total / perPage))
-  local page = dd._soundPage or 1
-  if page < 1 then
-    page = 1
-  end
-  if page > maxPage then
-    page = maxPage
-  end
-  dd._soundPage = page
 
-  local startIndex = (page - 1) * perPage + 1
-  local endIndex = math.min(startIndex + perPage - 1, total)
+  local total = table.getn(SOUND_FILES)
+  local perPage = 20  -- keep well under UIDropDownMenu button cap
+  local maxPage = 1
+  if total > 0 then
+    maxPage = math.ceil(total / perPage)
+  end
+  if dd._soundPage < 1 then dd._soundPage = 1 end
+  if dd._soundPage > maxPage then dd._soundPage = maxPage end
 
-  UIDropDownMenu_Initialize(dd, function()
-    local info = UIDropDownMenu_CreateInfo()
-    info.text = "(none)"
-    info.value = ""
-    info.checked = (not selectedValue or selectedValue == "") and true or false
-    info.func = function()
-      UIDropDownMenu_SetSelectedValue(dd, "")
-      UIDropDownMenu_SetText("Select sound", dd)
-      DoiteEdit_SetSoundFromDropdown(typeKey, eventKey, nil)
-      if CloseDropDownMenus then
-        CloseDropDownMenus()
-      end
+  local function ReopenNextFrame()
+    local f = dd._reopenFrame
+    if not f then
+      f = CreateFrame("Frame", nil, UIParent)
+      dd._reopenFrame = f
+      f:Hide()
+      f:SetScript("OnUpdate", function()
+        f:Hide()
+        ToggleDropDownMenu(nil, nil, dd, dd, 0, 0)
+      end)
     end
-    UIDropDownMenu_AddButton(info)
+    f:Show()
+  end
 
+  UIDropDownMenu_Initialize(dd, function(frame, level, menuList)
+    level = level or 1
+    local page = dd._soundPage or 1
+
+    -- Prev
     if page > 1 then
-      local prevInfo = UIDropDownMenu_CreateInfo()
-      prevInfo.text = "|cffffd000<<< PREVIOUS|r"
-      prevInfo.value = "PREV"
-      prevInfo.notCheckable = true
-      prevInfo.func = function()
+      local infoPrev = UIDropDownMenu_CreateInfo()
+      infoPrev.text = "|cffffd000<< Previous|r"
+      infoPrev.notCheckable = true
+      infoPrev.func = function()
         dd._soundPage = page - 1
-        DoiteEdit_InitSoundDropdown(dd, typeKey, eventKey, selectedValue)
-        DoiteEdit_ReopenSoundDDNextFrame(dd)
+        if CloseDropDownMenus then CloseDropDownMenus() end
+        ReopenNextFrame()
       end
-      UIDropDownMenu_AddButton(prevInfo)
+      UIDropDownMenu_AddButton(infoPrev, level)
     end
 
-    local i
-    for i = startIndex, endIndex do
-      local fname = sounds[i]
+    -- Page items
+    local startIndex = (page - 1) * perPage + 1
+    local endIndex = math.min(startIndex + perPage - 1, total)
+
+    local i = startIndex
+    while i <= endIndex do
+      local fname = SOUND_FILES[i]
       local info2 = UIDropDownMenu_CreateInfo()
       info2.text = fname
       info2.value = fname
-      info2.checked = (selectedValue == fname)
-      info2.func = function(btn)
-        local picked = (btn and btn.value) or fname
+      info2.checked = (dd._selectedSound == fname)
+      info2.func = function(button)
+        local picked = (button and button.value) or fname
+        dd._selectedSound = picked
         UIDropDownMenu_SetSelectedValue(dd, picked)
         UIDropDownMenu_SetText(picked, dd)
         DoiteEdit_SetSoundFromDropdown(typeKey, eventKey, picked)
-        if CloseDropDownMenus then
-          CloseDropDownMenus()
-        end
+        if CloseDropDownMenus then CloseDropDownMenus() end
       end
-      UIDropDownMenu_AddButton(info2)
+      UIDropDownMenu_AddButton(info2, level)
+      i = i + 1
     end
 
+    -- Next
     if page < maxPage then
-      local nextInfo = UIDropDownMenu_CreateInfo()
-      nextInfo.text = "|cffffd000NEXT >>>|r"
-      nextInfo.value = "NEXT"
-      nextInfo.notCheckable = true
-      nextInfo.func = function()
+      local infoNext = UIDropDownMenu_CreateInfo()
+      infoNext.text = "|cffffd000Next >>|r"
+      infoNext.notCheckable = true
+      infoNext.func = function()
         dd._soundPage = page + 1
-        DoiteEdit_InitSoundDropdown(dd, typeKey, eventKey, selectedValue)
-        DoiteEdit_ReopenSoundDDNextFrame(dd)
+        if CloseDropDownMenus then CloseDropDownMenus() end
+        ReopenNextFrame()
       end
-      UIDropDownMenu_AddButton(nextInfo)
+      UIDropDownMenu_AddButton(infoNext, level)
     end
   end)
 
-  if selectedValue and selectedValue ~= "" then
-    UIDropDownMenu_SetSelectedValue(dd, selectedValue)
-    UIDropDownMenu_SetText(selectedValue, dd)
+  -- Restore visible text
+  if dd._selectedSound ~= "" then
+    UIDropDownMenu_SetSelectedValue(dd, dd._selectedSound)
+    UIDropDownMenu_SetText(dd._selectedSound, dd)
   else
     UIDropDownMenu_SetSelectedValue(dd, "")
     UIDropDownMenu_SetText("Select sound", dd)
   end
+
   if _GoldifyDD then
     _GoldifyDD(dd)
   end
@@ -1492,8 +1456,7 @@ local function DoiteEdit_AnnounceEditingIcon(displayName)
   DEFAULT_CHAT_FRAME:AddMessage(msg)
 end
 
-DEFAULT_CUSTOM_FUNCTION_SOURCE = [[-- Define custom logic for this aura
--- a table named 'data' will be passed in, you can store data between frames inside this
+DEFAULT_CUSTOM_FUNCTION_SOURCE = [[-- Define custom logic for this aura a table named 'data' will be passed in, you can store data between frames inside this
 
 -- your code block must return the following:
 local show = true -- [boolean] true to show the icon, false to hide
@@ -1990,14 +1953,14 @@ local function CreateConditionsUI()
   -- Ability: Sound effects
   condFrame.cond_ability_sound_oncd_cb = MakeCheck("DoiteCond_Ability_Sound_OnCD_CB", "On cooldown", 0, row12_y)
   condFrame.cond_ability_sound_oncd_dd = CreateFrame("Frame", "DoiteCond_Ability_Sound_OnCD_DD", _Parent(), "UIDropDownMenuTemplate")
-  condFrame.cond_ability_sound_oncd_dd:SetPoint("TOPLEFT", _Parent(), "TOPLEFT", 130, row12_y + 3)
+  condFrame.cond_ability_sound_oncd_dd:SetPoint("TOPLEFT", _Parent(), "TOPLEFT", 100, row12_y + 3)
   if UIDropDownMenu_SetWidth then
     pcall(UIDropDownMenu_SetWidth, 140, condFrame.cond_ability_sound_oncd_dd)
   end
 
-  condFrame.cond_ability_sound_offcd_cb = MakeCheck("DoiteCond_Ability_Sound_OffCD_CB", "Off cooldown", 0, row13_y)
+  condFrame.cond_ability_sound_offcd_cb = MakeCheck("DoiteCond_Ability_Sound_OffCD_CB", "Off cooldown", 0, row12_y - 25)
   condFrame.cond_ability_sound_offcd_dd = CreateFrame("Frame", "DoiteCond_Ability_Sound_OffCD_DD", _Parent(), "UIDropDownMenuTemplate")
-  condFrame.cond_ability_sound_offcd_dd:SetPoint("TOPLEFT", _Parent(), "TOPLEFT", 130, row13_y + 3)
+  condFrame.cond_ability_sound_offcd_dd:SetPoint("TOPLEFT", _Parent(), "TOPLEFT", 100, row12_y - 22)
   if UIDropDownMenu_SetWidth then
     pcall(UIDropDownMenu_SetWidth, 140, condFrame.cond_ability_sound_offcd_dd)
   end
@@ -2197,12 +2160,12 @@ local function CreateConditionsUI()
   condFrame.cond_aura_stacks_val_enter:Hide()
 
   condFrame.cond_aura_text_time = MakeCheck("DoiteCond_Aura_TextTime", "Icon text: Time remaining", 0, row11_y - 11)
-  condFrame.cond_aura_text_stack = MakeCheck("DoiteCond_Aura_TextStack", "Icon text: Stacks", 165, row11_y - 11)
+  condFrame.cond_aura_text_stack = MakeCheck("DoiteCond_Aura_TextStack", "Icon text: Stacks", 0, row12_y+3)
   SetSeparator("aura", 10, "TIME REMAINING & STACKS", true, true)
 
   -- Class-specific (combo points)
 
-  local auraClassRowY = row12_y - 10
+  local auraClassRowY = row13_y -11
 
   condFrame.cond_aura_cp_cb = MakeCheck("DoiteCond_Aura_CP_CB", "Combo points", 0, auraClassRowY)
   condFrame.cond_aura_cp_comp = MakeComparatorDD("DoiteCond_Aura_CP_Comp", 85, auraClassRowY + 3, 50)
@@ -2212,9 +2175,9 @@ local function CreateConditionsUI()
   condFrame.cond_aura_cp_val_enter:SetText("(#)")
   condFrame.cond_aura_cp_val_enter:Hide()
 
-  local sepAuraClass = SetSeparator("aura", 12, "CLASS-SPECIFIC", true, true)
+  local sepAuraClass = SetSeparator("aura", 13, "CLASS-SPECIFIC", true, true)
   if sepAuraClass and srows then
-    local newY = (srows[12] or 0) - 10  -- original slot-10 Y minus 10
+    local newY = (srows[13] or 0) - 10  -- original slot-10 Y minus 10
     sepAuraClass:ClearAllPoints()
     sepAuraClass:SetPoint("TOPLEFT", _Parent(), "TOPLEFT", 0, newY)
     sepAuraClass:SetPoint("TOPRIGHT", _Parent(), "TOPRIGHT", 0, newY)
@@ -2237,46 +2200,46 @@ local function CreateConditionsUI()
   condFrame.cond_aura_class_note:Hide()
 
   -- Aura: Sound effects
-  condFrame.cond_aura_sound_ongain_cb = MakeCheck("DoiteCond_Aura_Sound_OnGain_CB", "On gain", 0, row13_y - 10)
+  condFrame.cond_aura_sound_ongain_cb = MakeCheck("DoiteCond_Aura_Sound_OnGain_CB", "On gain", 0, row14_y - 10)
   condFrame.cond_aura_sound_ongain_dd = CreateFrame("Frame", "DoiteCond_Aura_Sound_OnGain_DD", _Parent(), "UIDropDownMenuTemplate")
-  condFrame.cond_aura_sound_ongain_dd:SetPoint("TOPLEFT", _Parent(), "TOPLEFT", 130, row13_y - 7)
+  condFrame.cond_aura_sound_ongain_dd:SetPoint("TOPLEFT", _Parent(), "TOPLEFT", 100, row14_y - 7)
   if UIDropDownMenu_SetWidth then
     pcall(UIDropDownMenu_SetWidth, 140, condFrame.cond_aura_sound_ongain_dd)
   end
 
-  condFrame.cond_aura_sound_onfade_cb = MakeCheck("DoiteCond_Aura_Sound_OnFade_CB", "On fade", 0, row14_y - 10)
+  condFrame.cond_aura_sound_onfade_cb = MakeCheck("DoiteCond_Aura_Sound_OnFade_CB", "On fade", 0, row14_y - 35)
   condFrame.cond_aura_sound_onfade_dd = CreateFrame("Frame", "DoiteCond_Aura_Sound_OnFade_DD", _Parent(), "UIDropDownMenuTemplate")
-  condFrame.cond_aura_sound_onfade_dd:SetPoint("TOPLEFT", _Parent(), "TOPLEFT", 130, row14_y - 7)
+  condFrame.cond_aura_sound_onfade_dd:SetPoint("TOPLEFT", _Parent(), "TOPLEFT", 100, row14_y - 32)
   if UIDropDownMenu_SetWidth then
     pcall(UIDropDownMenu_SetWidth, 140, condFrame.cond_aura_sound_onfade_dd)
   end
 
-  local sepAuraSound = SetSeparator("aura", 13, "SOUND EFFECTS", true, true)
+  local sepAuraSound = SetSeparator("aura", 14, "SOUND EFFECTS", true, true)
   if sepAuraSound and srows then
-    local newY = (srows[13] or 0) - 10
+    local newY = (srows[14] or 0) - 10
     sepAuraSound:ClearAllPoints()
     sepAuraSound:SetPoint("TOPLEFT", _Parent(), "TOPLEFT", 0, newY)
     sepAuraSound:SetPoint("TOPRIGHT", _Parent(), "TOPRIGHT", 0, newY)
   end
 
-  local sepAuraBuff = SetSeparator("aura", 14, "EXTRA: VISIBILITY (SHOW/HIDE) CONDITIONS", true, true)
+  local sepAuraBuff = SetSeparator("aura", 16, "EXTRA: VISIBILITY (SHOW/HIDE) CONDITIONS", true, true)
   if sepAuraBuff and srows then
-    local newY = (srows[14] or 0) - 10
+    local newY = (srows[16] or 0)
     sepAuraBuff:ClearAllPoints()
     sepAuraBuff:SetPoint("TOPLEFT", _Parent(), "TOPLEFT", 0, newY)
     sepAuraBuff:SetPoint("TOPRIGHT", _Parent(), "TOPRIGHT", 0, newY)
   end
 
   -- Aura (Buff/Debuff): dynamic Aura Conditions section
-  local auraAuraBaseY = row14_y - 10
+  local auraAuraBaseY = row17_y + 15
   condFrame.auraAuraAnchor = CreateFrame("Frame", nil, _Parent())
   condFrame.auraAuraAnchor:SetPoint("TOPLEFT", _Parent(), "TOPLEFT", 0, auraAuraBaseY)
   condFrame.auraAuraAnchor:SetPoint("TOPRIGHT", _Parent(), "TOPRIGHT", 0, auraAuraBaseY)
   condFrame.auraAuraAnchor:SetHeight(20)
 
   -- Aura: dynamic Visual Effects Conditions section
-  local auraVfxBaseY = row15_y - 10
-  SetSeparator("aura", 15, "EXTRA: VISUAL EFFECT (GLOW/GREY) CONDITIONS", true, true)
+  local auraVfxBaseY = row17_y
+  SetSeparator("aura", 17, "EXTRA: VISUAL EFFECT (GLOW/GREY) CONDITIONS", true, true)
   condFrame.auraVfxAnchor = CreateFrame("Frame", nil, _Parent())
   condFrame.auraVfxAnchor:SetPoint("TOPLEFT", _Parent(), "TOPLEFT", 0, auraVfxBaseY)
   condFrame.auraVfxAnchor:SetPoint("TOPRIGHT", _Parent(), "TOPRIGHT", 0, auraVfxBaseY)
@@ -2368,7 +2331,6 @@ local function CreateConditionsUI()
   -- VISUAL EFFECTS
   condFrame.cond_item_glow = MakeCheck("DoiteCond_Item_Glow", "Glow", 0, row7_y)
   condFrame.cond_item_greyscale = MakeCheck("DoiteCond_Item_Greyscale", "Grey", 70, row7_y)
-  condFrame.cond_item_text_time = MakeCheck("DoiteCond_Item_TextTime", "Icon text: Time remaining", 140, row7_y)
   SetSeparator("item", 7, "VISUAL EFFECTS", true, true)
 
   -- ITEM ROW: TARGET DISTANCE & TYPE
@@ -2433,21 +2395,22 @@ local function CreateConditionsUI()
   condFrame.cond_item_remaining_comp:Hide()
   condFrame.cond_item_remaining_val:Hide()
   condFrame.cond_item_remaining_val_enter:Hide()
+  condFrame.cond_item_text_time = MakeCheck("DoiteCond_Item_TextTime", "Icon text: Time remaining", 0, row12_y - 25)
   SetSeparator("item", 12, "REMAINING TIME", true, true)
 
   -- CLASS-SPECIFIC (Combo points)
-  condFrame.cond_item_cp_cb = MakeCheck("DoiteCond_Item_CP_CB", "Combo points", 0, row13_y)
-  condFrame.cond_item_cp_comp = MakeComparatorDD("DoiteCond_Item_CP_Comp", 85, row13_y + 3, 50)
-  condFrame.cond_item_cp_val = MakeSmallEdit("DoiteCond_Item_CP_Val", 180, row13_y - 2, 40)
+  condFrame.cond_item_cp_cb = MakeCheck("DoiteCond_Item_CP_CB", "Combo points", 0, row14_y)
+  condFrame.cond_item_cp_comp = MakeComparatorDD("DoiteCond_Item_CP_Comp", 85, row14_y + 3, 50)
+  condFrame.cond_item_cp_val = MakeSmallEdit("DoiteCond_Item_CP_Val", 180, row14_y - 2, 40)
   condFrame.cond_item_cp_val_enter = _Parent():CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
   condFrame.cond_item_cp_val_enter:SetPoint("LEFT", condFrame.cond_item_cp_val, "RIGHT", 4, 0)
   condFrame.cond_item_cp_val_enter:SetText("(#)")
   condFrame.cond_item_cp_val_enter:Hide()
-  SetSeparator("item", 13, "CLASS-SPECIFIC", true, true)
+  SetSeparator("item", 14, "CLASS-SPECIFIC", true, true)
 
   -- Item: class-specific weapon / fighting-style dropdown (Shaman / Warrior / Paladin)
   condFrame.cond_item_weaponDD = CreateFrame("Frame", "DoiteCond_Item_WeaponDD", _Parent(), "UIDropDownMenuTemplate")
-  condFrame.cond_item_weaponDD:SetPoint("TOPLEFT", _Parent(), "TOPLEFT", -15, row13_y + 3)
+  condFrame.cond_item_weaponDD:SetPoint("TOPLEFT", _Parent(), "TOPLEFT", -15, row14_y + 3)
   if UIDropDownMenu_SetWidth then
     pcall(UIDropDownMenu_SetWidth, 90, condFrame.cond_item_weaponDD)
   end
@@ -2456,38 +2419,38 @@ local function CreateConditionsUI()
 
   -- Item: class-specific note for classes without combo points
   condFrame.cond_item_class_note = _Parent():CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-  condFrame.cond_item_class_note:SetPoint("TOPLEFT", _Parent(), "TOPLEFT", 0, row13_y)
+  condFrame.cond_item_class_note:SetPoint("TOPLEFT", _Parent(), "TOPLEFT", 0, row14_y)
   condFrame.cond_item_class_note:SetTextColor(1, 0.82, 0)
   condFrame.cond_item_class_note:SetText("No class-specific option added for your class.")
   condFrame.cond_item_class_note:Hide()
 
   -- Item: Sound effects
-  condFrame.cond_item_sound_oncd_cb = MakeCheck("DoiteCond_Item_Sound_OnCD_CB", "On cooldown", 0, row14_y)
+  condFrame.cond_item_sound_oncd_cb = MakeCheck("DoiteCond_Item_Sound_OnCD_CB", "On cooldown", 0, row15_y)
   condFrame.cond_item_sound_oncd_dd = CreateFrame("Frame", "DoiteCond_Item_Sound_OnCD_DD", _Parent(), "UIDropDownMenuTemplate")
-  condFrame.cond_item_sound_oncd_dd:SetPoint("TOPLEFT", _Parent(), "TOPLEFT", 130, row14_y + 3)
+  condFrame.cond_item_sound_oncd_dd:SetPoint("TOPLEFT", _Parent(), "TOPLEFT", 100, row15_y + 3)
   if UIDropDownMenu_SetWidth then
     pcall(UIDropDownMenu_SetWidth, 140, condFrame.cond_item_sound_oncd_dd)
   end
 
-  condFrame.cond_item_sound_offcd_cb = MakeCheck("DoiteCond_Item_Sound_OffCD_CB", "Off cooldown", 0, row15_y)
+  condFrame.cond_item_sound_offcd_cb = MakeCheck("DoiteCond_Item_Sound_OffCD_CB", "Off cooldown", 0, row15_y - 25)
   condFrame.cond_item_sound_offcd_dd = CreateFrame("Frame", "DoiteCond_Item_Sound_OffCD_DD", _Parent(), "UIDropDownMenuTemplate")
-  condFrame.cond_item_sound_offcd_dd:SetPoint("TOPLEFT", _Parent(), "TOPLEFT", 130, row15_y + 3)
+  condFrame.cond_item_sound_offcd_dd:SetPoint("TOPLEFT", _Parent(), "TOPLEFT", 100, row15_y - 22)
   if UIDropDownMenu_SetWidth then
     pcall(UIDropDownMenu_SetWidth, 140, condFrame.cond_item_sound_offcd_dd)
   end
-  SetSeparator("item", 14, "SOUND EFFECTS", true, true)
+  SetSeparator("item", 15, "SOUND EFFECTS", true, true)
 
   -- Item: dynamic Aura Conditions section
-  local itemAuraBaseY = row16_y
-  SetSeparator("item", 16, "EXTRA: VISIBILITY (SHOW/HIDE) CONDITIONS", true, true)
+  local itemAuraBaseY = row17_y - 25
+  SetSeparator("item", 17, "EXTRA: VISIBILITY (SHOW/HIDE) CONDITIONS", true, true)
   condFrame.itemAuraAnchor = CreateFrame("Frame", nil, _Parent())
   condFrame.itemAuraAnchor:SetPoint("TOPLEFT", _Parent(), "TOPLEFT", 0, itemAuraBaseY)
   condFrame.itemAuraAnchor:SetPoint("TOPRIGHT", _Parent(), "TOPRIGHT", 0, itemAuraBaseY)
   condFrame.itemAuraAnchor:SetHeight(20)
 
   -- Item: dynamic Visual Effects Conditions section
-  local itemVfxBaseY = row17_y
-  SetSeparator("item", 17, "EXTRA: VISUAL EFFECT (GLOW/GREY) CONDITIONS", true, true)
+  local itemVfxBaseY = row18_y
+  SetSeparator("item", 18, "EXTRA: VISUAL EFFECT (GLOW/GREY) CONDITIONS", true, true)
   condFrame.itemVfxAnchor = CreateFrame("Frame", nil, _Parent())
   condFrame.itemVfxAnchor:SetPoint("TOPLEFT", _Parent(), "TOPLEFT", 0, itemVfxBaseY)
   condFrame.itemVfxAnchor:SetPoint("TOPRIGHT", _Parent(), "TOPRIGHT", 0, itemVfxBaseY)
@@ -5714,17 +5677,17 @@ _ReflowCondAreaHeight = function()
   if condFrame.abilityAuraAnchor and condFrame.abilityAuraAnchor:IsShown() then
     local visHeight = condFrame.abilityAuraAnchor:GetHeight() or 20
     
-    local ROW12_Y = -470
-    local ROW13_Y = -510
+    local ROW14_Y = -550
+    local ROW15_Y = -590
     
     local expansion = visHeight - 20
     if expansion < 0 then expansion = 0 end
     
-    local newVfxY = ROW13_Y - expansion
+    local newVfxY = ROW15_Y - expansion
     
     -- Move the separator
-    if condFrame._seps and condFrame._seps.ability and condFrame._seps.ability[13] then
-      local sep = condFrame._seps.ability[13]
+    if condFrame._seps and condFrame._seps.ability and condFrame._seps.ability[15] then
+      local sep = condFrame._seps.ability[15]
       sep:ClearAllPoints()
       sep:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, newVfxY)
       sep:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, newVfxY)
@@ -5739,19 +5702,19 @@ _ReflowCondAreaHeight = function()
   end
 
   -- 2. Reflow Aura Section
-  -- Aura Visibility base is (row13_y - 10) = -520
-  -- Aura VFX base is (row14_y - 10) = -560
+  -- Aura Visibility base is (row16_y) = -630
+  -- Aura VFX base is (row17_y) = -670
   if condFrame.auraAuraAnchor and condFrame.auraAuraAnchor:IsShown() then
     local visHeight = condFrame.auraAuraAnchor:GetHeight() or 20
-    local AURA_VIS_Y = -520
-    local AURA_VFX_Y = -560
+    local AURA_VIS_Y = -630
+    local AURA_VFX_Y = -670
     
     local expansion = visHeight - 20
     if expansion < 0 then expansion = 0 end
     
     local newVfxY = AURA_VFX_Y - expansion
-    if condFrame._seps and condFrame._seps.aura and condFrame._seps.aura[14] then
-      local sep = condFrame._seps.aura[14]
+    if condFrame._seps and condFrame._seps.aura and condFrame._seps.aura[17] then
+      local sep = condFrame._seps.aura[17]
       sep:ClearAllPoints()
       sep:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, newVfxY)
       sep:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, newVfxY)
@@ -5764,20 +5727,20 @@ _ReflowCondAreaHeight = function()
   end
 
   -- 3. Reflow Item Section
-  -- Item Visibility base is row14_y = -550
-  -- Item VFX base is row15_y = -590
+  -- Item Visibility base is row17_y = -550
+  -- Item VFX base is row18_y = -590
   if condFrame.itemAuraAnchor and condFrame.itemAuraAnchor:IsShown() then
     local visHeight = condFrame.itemAuraAnchor:GetHeight() or 20
-    local ITEM_VIS_Y = -550
-    local ITEM_VFX_Y = -590
+    local ITEM_VIS_Y = -670
+    local ITEM_VFX_Y = -710
     
     local expansion = visHeight - 20
     if expansion < 0 then expansion = 0 end
     
     local newVfxY = ITEM_VFX_Y - expansion
     
-    if condFrame._seps and condFrame._seps.item and condFrame._seps.item[15] then
-      local sep = condFrame._seps.item[15]
+    if condFrame._seps and condFrame._seps.item and condFrame._seps.item[18] then
+      local sep = condFrame._seps.item[18]
       sep:ClearAllPoints()
       sep:SetPoint("TOPLEFT", parent, "TOPLEFT", 0, newVfxY)
       sep:SetPoint("TOPRIGHT", parent, "TOPRIGHT", 0, newVfxY)
