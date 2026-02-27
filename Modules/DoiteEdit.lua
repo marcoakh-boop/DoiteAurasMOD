@@ -7675,7 +7675,7 @@ do
     VfxCond_OnCancelEditing(mgr.editRow)
     mgr.editRow:Show()
 
-    local y = -35
+    local y = -30
 
     i = 1
     while mgr.savedRows and mgr.savedRows[i] do
