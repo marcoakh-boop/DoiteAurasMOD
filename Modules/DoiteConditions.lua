@@ -4898,16 +4898,18 @@ local function CheckAbilityConditions(data)
     return true -- if no conditions, always show
   end
   local c = data.conditions.ability
-  -- Consolidated context table: keeps local count lower while preserving hot-path local access.
-  local ctx = {
-    allowHelp = (c.targetHelp == true),
-    allowHarm = (c.targetHarm == true),
-    allowSelf = (c.targetSelf == true),
-    spellName = _GetCanonicalSpellNameFromData(data),
-    spellIndex = nil,
-    tf = nil,
-  }
+  -- Consolidated context table: keeps local count lower while avoiding per-eval allocations.
+  local ctx = data._daCtx
+  if not ctx then
+    ctx = {}
+    data._daCtx = ctx
+  end
+  ctx.allowHelp = (c.targetHelp == true)
+  ctx.allowHarm = (c.targetHarm == true)
+  ctx.allowSelf = (c.targetSelf == true)
+  ctx.spellName = _GetCanonicalSpellNameFromData(data)
   ctx.spellIndex = _GetSpellIndexByName(ctx.spellName)
+  ctx.tf = nil
 
   -- While editing this key, force conditions to pass (always show).
   if _IsKeyUnderEdit(data.key) then
@@ -4923,7 +4925,14 @@ local function CheckAbilityConditions(data)
 
   -- === Slider guard for cooldown slider preview ========================
   data._daSliderGuard = nil
-  local _sg = { form = nil, weapon = nil, aura = nil }
+
+  -- Reuse a per-icon temp table; cannot use _daSliderGuard since it's later set to boolean.
+  local _sg = data._daSliderGuardTmp
+  if not _sg then
+    _sg = {}
+    data._daSliderGuardTmp = _sg
+  end
+  _sg.form, _sg.weapon, _sg.aura = nil, nil, nil
 
   if c.slider == true and (c.mode == "usable" or c.mode == "notcd") then
     local okSlider = true
