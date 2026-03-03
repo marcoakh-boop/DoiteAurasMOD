@@ -4592,6 +4592,9 @@ function UpdateItemStacksForMissing()
     if eb and eb.GetText then
       txt = eb:GetText() or ""
       txt = string.gsub(txt, "^%s*(.-)%s*$", "%1")
+      if txt ~= "" and (not tonumber(txt)) then
+        txt = AuraCond_TitleCase(txt)
+      end
     end
     if which == "stack" then
       ca.stackOverride = (txt ~= "") and txt or nil
@@ -4637,6 +4640,9 @@ function UpdateItemStacksForMissing()
     if eb and eb.GetText then
       txt = eb:GetText() or ""
       txt = string.gsub(txt, "^%s*(.-)%s*$", "%1")
+      if txt ~= "" and (not tonumber(txt)) then
+        txt = AuraCond_TitleCase(txt)
+      end
     end
     ci.remOverride = (txt ~= "") and txt or nil
     UpdateCondFrameForKey(currentKey)
