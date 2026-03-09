@@ -20,6 +20,12 @@ if DoiteAurasDB.showtooltip == nil then
 end
 DoiteAuras = DoiteAuras or {}
 
+local renameState
+local DA_GetSpellIdShownName
+local DA_ClearRenameState
+local DA_CancelRename
+local DA_IsRenameNameDuplicate
+
 -- Always return a valid name->texture cache table
 local function DA_Cache()
   DoiteAurasDB = DoiteAurasDB or {}
@@ -500,6 +506,8 @@ exportBtn:SetHeight(20)
 exportBtn:SetPoint("RIGHT", closeBtn, "LEFT", -4, 0)
 exportBtn:SetText("Export")
 exportBtn:SetScript("OnClick", function()
+    DA_CancelRename()
+    if DoiteAuras_RefreshList then pcall(DoiteAuras_RefreshList) end
     if DoiteExport_ShowExportFrame then
         DoiteExport_ShowExportFrame()
     else
@@ -513,6 +521,8 @@ importBtn:SetHeight(20)
 importBtn:SetPoint("RIGHT", exportBtn, "LEFT", -4, 0)
 importBtn:SetText("Import")
 importBtn:SetScript("OnClick", function()
+    DA_CancelRename()
+    if DoiteAuras_RefreshList then pcall(DoiteAuras_RefreshList) end
     if DoiteExport_ShowImportFrame then
         DoiteExport_ShowImportFrame()
     else
@@ -529,6 +539,8 @@ settingsBtn:SetText("Settings")
 
 -- External call
 settingsBtn:SetScript("OnClick", function()
+    DA_CancelRename()
+    if DoiteAuras_RefreshList then pcall(DoiteAuras_RefreshList) end
     if DoiteAuras_ShowSettings then
         DoiteAuras_ShowSettings()
     else
@@ -1218,6 +1230,9 @@ customCB.text:SetPoint("LEFT", customCB, "RIGHT", 2, 0)
 customCB.text:SetText("Custom")
 
 abilityCB:SetScript("OnClick", function()
+    DA_CancelRename()
+    if DoiteAuras_RefreshList then pcall(DoiteAuras_RefreshList) end
+
     abilityCB:SetChecked(true)
     buffCB:SetChecked(false)
     debuffCB:SetChecked(false)
@@ -1233,6 +1248,9 @@ abilityCB:SetScript("OnClick", function()
 end)
 
 buffCB:SetScript("OnClick", function()
+    DA_CancelRename()
+    if DoiteAuras_RefreshList then pcall(DoiteAuras_RefreshList) end
+
     abilityCB:SetChecked(false)
     buffCB:SetChecked(true)
     debuffCB:SetChecked(false)
@@ -1244,6 +1262,9 @@ buffCB:SetScript("OnClick", function()
 end)
 
 debuffCB:SetScript("OnClick", function()
+    DA_CancelRename()
+    if DoiteAuras_RefreshList then pcall(DoiteAuras_RefreshList) end
+
     abilityCB:SetChecked(false)
     buffCB:SetChecked(false)
     debuffCB:SetChecked(true)
@@ -1255,6 +1276,9 @@ debuffCB:SetScript("OnClick", function()
 end)
 
 itemsCB:SetScript("OnClick", function()
+    DA_CancelRename()
+    if DoiteAuras_RefreshList then pcall(DoiteAuras_RefreshList) end
+
     if not itemsCB:GetChecked() then
         -- prevent "nothing selected": keep it checked if Item is current
         if currentType == "Item" then
@@ -1278,6 +1302,9 @@ itemsCB:SetScript("OnClick", function()
 end)
 
 barsCB:SetScript("OnClick", function()
+    DA_CancelRename()
+    if DoiteAuras_RefreshList then pcall(DoiteAuras_RefreshList) end
+
     if not barsCB:GetChecked() then
         if currentType == "Bar" then
             barsCB:SetChecked(true)
@@ -1296,6 +1323,9 @@ barsCB:SetScript("OnClick", function()
 end)
 
 customCB:SetScript("OnClick", function()
+    DA_CancelRename()
+    if DoiteAuras_RefreshList then pcall(DoiteAuras_RefreshList) end
+
     if not customCB:GetChecked() then
         if currentType == "Custom" then
             customCB:SetChecked(true)
@@ -1332,6 +1362,8 @@ frame:SetScript("OnShow", function()
 end)
 
 frame:SetScript("OnHide", function()
+    DA_CancelRename()
+
     -- Force-close Import / Export / Settings windows when the main DoiteAuras frame is hidden
     local f
 
@@ -1413,6 +1445,163 @@ guide:SetText("Guide: DoiteAuras shows only what matters—abilities, buffs, deb
 
 -- storage
 local spellButtons, icons, groupHeaders = {}, {}, {}
+renameState = {
+    key = nil,
+    original = nil,
+}
+
+DA_GetSpellIdShownName = function(spellIdStr)
+    if not spellIdStr or spellIdStr == "" then return nil end
+
+    local resolvedSpellName = nil
+    local resolvedSpellRank = nil
+
+    if type(GetSpellNameAndRankForId) == "function" then
+        local ok, sn, sr = pcall(GetSpellNameAndRankForId, tonumber(spellIdStr))
+        if ok and sn and sn ~= "" then
+            resolvedSpellName = tostring(sn)
+            if sr and sr ~= "" then
+                resolvedSpellRank = tostring(sr)
+            end
+        end
+    end
+
+    if resolvedSpellName then
+        if resolvedSpellRank then
+            return resolvedSpellName .. " [" .. resolvedSpellRank .. "] - ID: " .. spellIdStr
+        end
+        return resolvedSpellName .. " - ID: " .. spellIdStr
+    end
+
+    return "Spell ID: " .. spellIdStr .. " (will update when seen)"
+end
+
+DA_ClearRenameState = function()
+    renameState.key = nil
+    renameState.original = nil
+end
+
+DA_CancelRename = function()
+    local key = renameState.key
+    if key and DoiteAurasDB and DoiteAurasDB.spells and DoiteAurasDB.spells[key] then
+        DoiteAurasDB.spells[key].shownName = renameState.original
+    end
+    DA_ClearRenameState()
+end
+
+DA_IsRenameNameDuplicate = function(currentKey, txt)
+    if not txt or txt == "" or not DoiteAurasDB or not DoiteAurasDB.spells then
+        return false
+    end
+    local k, d
+    for k, d in pairs(DoiteAurasDB.spells) do
+        if k ~= currentKey and d then
+            local otherShown = d.shownName
+            if otherShown and otherShown == txt then
+                return true
+            end
+            local otherDisplay = d.displayName or d.name
+            if otherDisplay and otherDisplay == txt then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+function DA_RenameTrim(txt)
+    txt = txt or ""
+    txt = string.gsub(txt, "^%s+", "")
+    txt = string.gsub(txt, "%s+$", "")
+    return txt
+end
+
+function DA_RenameUpdateAddState(row)
+    if not row or not row.renameInput or not row.renameAddBtn then return end
+    local key = row.daKey
+    local txt = DA_RenameTrim(row.renameInput:GetText() or "")
+    if txt == "" or DA_IsRenameNameDuplicate(key, txt) then
+        row.renameAddBtn:Disable()
+    else
+        row.renameAddBtn:Enable()
+    end
+end
+
+function DA_RenameOnTextChanged()
+    local row = this and this:GetParent()
+    DA_RenameUpdateAddState(row)
+end
+
+function DA_RenameStart()
+    local row = this and this:GetParent()
+    if not row then return end
+    local key = row.daKey
+    if not key or not DoiteAurasDB or not DoiteAurasDB.spells then return end
+    local data = DoiteAurasDB.spells[key]
+    if not data then return end
+
+    DA_CancelRename()
+    renameState.key = key
+    renameState.original = data.shownName
+
+    if row.renameInput then
+        row.renameInput:SetText(data.shownName or data.displayName or data.name or "")
+        row.renameInput:Show()
+        row.renameInput:SetFocus()
+    end
+    if row.renameAddBtn then row.renameAddBtn:Show() end
+    if row.renameResetBtn then row.renameResetBtn:Show() end
+    if row.renameBackBtn then row.renameBackBtn:Show() end
+
+    DA_RenameUpdateAddState(row)
+    if DoiteAuras_RefreshList then pcall(DoiteAuras_RefreshList) end
+end
+
+function DA_RenameBack()
+    DA_CancelRename()
+    if DoiteAuras_RefreshList then pcall(DoiteAuras_RefreshList) end
+end
+
+function DA_RenameReset()
+    local row = this and this:GetParent()
+    if not row then return end
+    local key = row.daKey
+    local data = key and DoiteAurasDB and DoiteAurasDB.spells and DoiteAurasDB.spells[key]
+    if not data then return end
+
+    if data.Addedviaspellid == true and data.spellid and data.spellid ~= "" then
+        data.shownName = DA_GetSpellIdShownName(tostring(data.spellid))
+    else
+        data.shownName = nil
+    end
+
+    DA_ClearRenameState()
+    if DoiteAuras_RefreshList then pcall(DoiteAuras_RefreshList) end
+    if DoiteAuras_RefreshIcons then pcall(DoiteAuras_RefreshIcons, true) end
+    if DoiteConditions_RequestEvaluate then
+        DoiteConditions_RequestEvaluate()
+    end
+end
+
+function DA_RenameAdd()
+    local row = this and this:GetParent()
+    if not row then return end
+    local key = row.daKey
+    local data = key and DoiteAurasDB and DoiteAurasDB.spells and DoiteAurasDB.spells[key]
+    if not data then return end
+
+    local txt = DA_RenameTrim(row.renameInput and row.renameInput:GetText() or "")
+    if txt == "" then return end
+    if DA_IsRenameNameDuplicate(key, txt) then return end
+
+    data.shownName = txt
+    DA_ClearRenameState()
+    if DoiteAuras_RefreshList then pcall(DoiteAuras_RefreshList) end
+    if DoiteAuras_RefreshIcons then pcall(DoiteAuras_RefreshIcons, true) end
+    if DoiteConditions_RequestEvaluate then
+        DoiteConditions_RequestEvaluate()
+    end
+end
 
 function DoiteAuras_GetIconFrame(key)
     if not key then return nil end
@@ -1855,7 +2044,7 @@ end
 -- Helper: Use item by name scanning bags/inventory
 local function DA_UseItemByName(itemName)
     if not itemName or itemName == "" then return end
-    
+
     -- Check bags 0-4
     for bag = 0, 4 do
         local slots = GetContainerNumSlots(bag)
@@ -1888,7 +2077,7 @@ local function DA_UseItemByName(itemName)
             end
         end
     end
-    
+
     if DEFAULT_CHAT_FRAME then DEFAULT_CHAT_FRAME:AddMessage("DoiteAuras: Item [" .. itemName .. "] NOT FOUND in bags or inventory.") end
 end
 
@@ -2027,13 +2216,13 @@ local function CreateOrUpdateIcon(key, layer)
             GameTooltip:Hide()
 
             local frameKey = this._daKey
-            
+
             -- Only save if valid key
             if not frameKey then return end
 
             -- MoveAnything Coordinate Formula:
             -- Precise deviation from screen center, normalized to frame scale.
-            
+
             -- 1. Screen Center (Reference)
             local rScale = UIParent:GetEffectiveScale()
             local rX, rY = UIParent:GetCenter()
@@ -2069,7 +2258,7 @@ local function CreateOrUpdateIcon(key, layer)
             if DoiteEdit_FlushHeavy then
                 DoiteEdit_FlushHeavy()
             end
-            
+
             -- Force group layout re-calc so followers snap to new leader pos immediately
             if DoiteGroup and DoiteGroup.RequestReflow then
                 DoiteGroup.RequestReflow()
@@ -2125,10 +2314,10 @@ end
 local function EnsureDefaults(key)
     if not DoiteAurasDB.spells[key] then return end
     local d = DoiteAurasDB.spells[key]
-    
+
     -- Structure must exist
     if not d.conditions then d.conditions = {} end
-    
+
     if d.type == "Item" then
         if not d.conditions.item then d.conditions.item = {} end
         -- Note: Don't force 'clickable' to true here, respect the saved value (or nil).
@@ -2248,10 +2437,10 @@ local function RefreshIcons(force)
     -- Step 1: collect lightweight icon state (no extra combat logic – DoiteConditions owns that)
     for i = 1, total do
         local key  = keyList[i]
-        
+
         -- Ensure defaults exist so condition checks don't fail on nil tables
         EnsureDefaults(key)
-        
+
         local data = DoiteAurasDB.spells[key]
         local typ  = data and data.type or "Ability"
 
@@ -2371,7 +2560,7 @@ local function RefreshIcons(force)
     if DoiteGroup and not _G["DoiteGroup_LayoutInProgress"] and DoiteGroup.ApplyGroupLayout then
         pcall(DoiteGroup.ApplyGroupLayout, layoutCandidates)
     end
-	
+
 	-- Persist the computed layout so future refresh passes keep using it
 	do
 		local map = _G["DoiteGroup_Computed"]
@@ -2559,7 +2748,7 @@ local function RefreshIcons(force)
 
         -- MOVED OUTSIDE of visibility check to ensure handlers are attached even if the icon is initially hidden (e.g. startup race).
         -- Visibility is dynamic (DoiteConditions), but the handler must be ready when it shows.
-        
+
         local ic = data and data.conditions and data.conditions.item
         -- Only allow clicking if configured, NOT greyed out, and NOT in edit mode
         -- STRICTLY restrict to Items only
@@ -2577,7 +2766,7 @@ local function RefreshIcons(force)
 
         if isClickable or showTooltips then
              f:EnableMouse(true)
-             
+
              if isClickable then
                  f:SetScript("OnClick", function()
                      -- Block item use while in edit mode (Issue #50)
@@ -2640,7 +2829,7 @@ local function RefreshIcons(force)
     end
 
     _G["DoiteAuras_RefreshInProgress"] = false
-    
+
     -- Ensure conditions are evaluated immediately so "grey" state is correct on startup
     if DoiteConditions and DoiteConditions.EvaluateAll then
         DoiteConditions:EvaluateAll()
@@ -2794,103 +2983,80 @@ local function RefreshList()
                     end
                 end)
 
-                -- Sort controls (created once; shown only for group headers)
-                hdr.sortTime = CreateFrame("CheckButton", nil, hdr, "UICheckButtonTemplate")
-                hdr.sortTime:SetWidth(14); hdr.sortTime:SetHeight(14)
-                hdr.sortTime.text = hdr:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-                hdr.sortTime.text:SetPoint("LEFT", hdr.sortTime, "RIGHT", 2, 0)
-                hdr.sortTime.text:SetText("Time")
-                if hdr.sortTime.text.SetTextColor then
-                    hdr.sortTime.text:SetTextColor(1, 1, 1)
-                end
+	                -- Group mode dropdown (group-only; replaces sort/fixed/disable checks)
+	                hdr.groupModeDropdown = CreateFrame("Frame", "DoiteAurasGroupModeDropdown" .. tostring(headerIndex), hdr, "UIDropDownMenuTemplate")
+	                UIDropDownMenu_SetWidth(80, hdr.groupModeDropdown)
 
-                hdr.sortPrio = CreateFrame("CheckButton", nil, hdr, "UICheckButtonTemplate")
-                hdr.sortPrio:SetWidth(14); hdr.sortPrio:SetHeight(14)
-                hdr.sortPrio.text = hdr:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-                hdr.sortPrio.text:SetPoint("LEFT", hdr.sortPrio, "RIGHT", 2, 0)
-                hdr.sortPrio.text:SetText("Prio")
-                if hdr.sortPrio.text.SetTextColor then
-                    hdr.sortPrio.text:SetTextColor(1, 1, 1)
-                end
+	                hdr.groupModeLabels = {
+	                    prio = "Sort by prio",
+	                    time = "Sort by time",
+	                    fixed = "Dont sort: Fixed / Static",
+	                    disabled = "Disable group",
+	                }
 
-                hdr.fixedCheck = CreateFrame("CheckButton", nil, hdr, "UICheckButtonTemplate")
-                hdr.fixedCheck:SetWidth(14); hdr.fixedCheck:SetHeight(14)
-                hdr.fixedCheck.text = hdr:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-                hdr.fixedCheck.text:SetPoint("LEFT", hdr.fixedCheck, "RIGHT", 2, 0)
-                hdr.fixedCheck.text:SetText("Fixed")
-                if hdr.fixedCheck.text.SetTextColor then
-                    hdr.fixedCheck.text:SetTextColor(1, 1, 1)
-                end
+	                local function DA_ApplyGroupModeSelection(parent, selectedMode)
+	                    if not parent or not parent.groupName or parent.groupName == "" then return end
 
-                hdr.sortPrio:SetScript("OnClick", function()
-                    local p = this:GetParent()
-                    if not p or not p.groupName or p.groupName == "" then
-                        this:SetChecked(true)
-                        return
-                    end
-                    if not this:GetChecked() then
-                        this:SetChecked(true)
-                        return
-                    end
-                    this:SetChecked(true)
-                    if p.sortTime then p.sortTime:SetChecked(false) end
-                    if p.fixedCheck then p.fixedCheck:SetChecked(false) end
-                    DoiteAurasDB.groupSort = DoiteAurasDB.groupSort or {}
-                    DoiteAurasDB.groupSort[p.groupName] = "prio"
-                    if DoiteAurasDB.groupFixed then
-                        DoiteAurasDB.groupFixed[p.groupName] = nil
-                    end
-                    DoiteGroup.InvalidateSortCache(p.groupName)
-                    _G["DoiteGroup_NeedReflow"] = true
-                end)
+	                    local groupName = parent.groupName
+	                    local bucketKey = parent.bucketKey
 
-                hdr.sortTime:SetScript("OnClick", function()
-                    local p = this:GetParent()
-                    if not p or not p.groupName or p.groupName == "" then
-                        this:SetChecked(true)
-                        return
-                    end
-                    if not this:GetChecked() then
-                        this:SetChecked(true)
-                        return
-                    end
-                    this:SetChecked(true)
-                    if p.sortPrio then p.sortPrio:SetChecked(false) end
-                    if p.fixedCheck then p.fixedCheck:SetChecked(false) end
-                    DoiteAurasDB.groupSort = DoiteAurasDB.groupSort or {}
-                    DoiteAurasDB.groupSort[p.groupName] = "time"
-                    if DoiteAurasDB.groupFixed then
-                        DoiteAurasDB.groupFixed[p.groupName] = nil
-                    end
-                    DoiteGroup.InvalidateSortCache(p.groupName)
-                    _G["DoiteGroup_NeedReflow"] = true
-                end)
+	                    DoiteAurasDB.groupSort = DoiteAurasDB.groupSort or {}
+	                    DoiteAurasDB.groupFixed = DoiteAurasDB.groupFixed or {}
+	                    DoiteAurasDB.bucketDisabled = DoiteAurasDB.bucketDisabled or {}
 
-                hdr.fixedCheck:SetScript("OnClick", function()
-                    local p = this:GetParent()
-                    if not p or not p.groupName or p.groupName == "" then
-                        this:SetChecked(false)
-                        return
-                    end
-                    DoiteAurasDB.groupFixed = DoiteAurasDB.groupFixed or {}
-                    if this:GetChecked() then
-                        DoiteAurasDB.groupFixed[p.groupName] = true
-                        if p.sortPrio then p.sortPrio:SetChecked(false) end
-                        if p.sortTime then p.sortTime:SetChecked(false) end
-                    else
-                        DoiteAurasDB.groupFixed[p.groupName] = nil
-                    end
-                    if DoiteGroup and DoiteGroup.RequestReflow then
-                        DoiteGroup.RequestReflow()
-                    else
-                        _G["DoiteGroup_NeedReflow"] = true
-                    end
-                    if DoiteAuras_RefreshIcons then
-                        pcall(DoiteAuras_RefreshIcons)
-                    end
-                end)
+	                    if bucketKey then
+	                        if selectedMode == "disabled" then
+	                            DoiteAurasDB.bucketDisabled[bucketKey] = true
+	                        else
+	                            DoiteAurasDB.bucketDisabled[bucketKey] = nil
+	                        end
+	                    end
 
-                hdr.sepTex = hdr:CreateTexture(nil, "ARTWORK")
+	                    if selectedMode == "time" or selectedMode == "prio" then
+	                        DoiteAurasDB.groupSort[groupName] = selectedMode
+	                        DoiteAurasDB.groupFixed[groupName] = nil
+	                        DoiteGroup.InvalidateSortCache(groupName)
+	                        _G["DoiteGroup_NeedReflow"] = true
+	                    elseif selectedMode == "fixed" then
+	                        DoiteAurasDB.groupFixed[groupName] = true
+	                        if DoiteGroup and DoiteGroup.RequestReflow then
+	                            DoiteGroup.RequestReflow()
+	                        else
+	                            _G["DoiteGroup_NeedReflow"] = true
+	                        end
+	                    end
+
+	                    UIDropDownMenu_SetSelectedValue(parent.groupModeDropdown, selectedMode)
+	                    UIDropDownMenu_SetText(parent.groupModeLabels[selectedMode] or parent.groupModeLabels.prio, parent.groupModeDropdown)
+
+	                    if DoiteAuras_RefreshIcons then
+	                        pcall(DoiteAuras_RefreshIcons)
+	                    end
+	                end
+
+	                UIDropDownMenu_Initialize(hdr.groupModeDropdown, function(level)
+	                    local p = hdr
+	                    if not p or not p.groupModeLabels then return end
+
+	                    local function addOption(modeValue)
+	                        local info = UIDropDownMenu_CreateInfo()
+	                        info.text = p.groupModeLabels[modeValue] or "Sort by prio"
+	                        info.value = modeValue
+	                        info.func = function()
+	                            local selected = (this and this.value) or modeValue
+	                            DA_ApplyGroupModeSelection(p, selected)
+	                        end
+	                        info.checked = (UIDropDownMenu_GetSelectedValue(p.groupModeDropdown) == modeValue)
+	                        UIDropDownMenu_AddButton(info, level or 1)
+	                    end
+
+	                    addOption("prio")
+	                    addOption("time")
+	                    addOption("fixed")
+	                    addOption("disabled")
+	                end)
+
+	                hdr.sepTex = hdr:CreateTexture(nil, "ARTWORK")
                 hdr.sepTex:SetHeight(1)
                 hdr.sepTex:SetPoint("BOTTOMLEFT", hdr, "BOTTOMLEFT", 0, -2)
                 hdr.sepTex:SetPoint("BOTTOMRIGHT", hdr, "BOTTOMRIGHT", 0, -2)
@@ -2911,8 +3077,8 @@ local function RefreshList()
 			if hdr.bucketKey then
 				hdr.disableCheck:ClearAllPoints()
 				hdr.disableCheck:SetPoint("RIGHT", hdr, "RIGHT", -45, 0)
-				hdr.disableCheck:Show()
 				hdr.disableCheck:SetChecked(DoiteAurasDB.bucketDisabled[hdr.bucketKey] == true)
+				if hdr.disableCheck.text then hdr.disableCheck.text:Show() end
 
 				-- Accordion toggle text
 				if hdr.toggleBtn then
@@ -2925,50 +3091,38 @@ local function RefreshList()
 				end
 			else
 				hdr.disableCheck:Hide()
+				if hdr.disableCheck.text then hdr.disableCheck.text:Hide() end
 				if hdr.toggleBtn then hdr.toggleBtn:Hide() end
 			end
 
-            -- Group sort controls (only for group headers)
+            -- Group mode dropdown (only for group headers)
             if entry.kind == "group" and hdr.groupName and hdr.groupName ~= "" then
                 local mode = DA_GetGroupSortMode(hdr.groupName)  -- "prio" or "time"
                 DoiteAurasDB.groupFixed = DoiteAurasDB.groupFixed or {}
                 local fixed = DoiteAurasDB.groupFixed[hdr.groupName] == true
 
-                local rightAnchor = hdr
-                local rightPointX = -45
-                if hdr.disableCheck and hdr.disableCheck.IsShown and hdr.disableCheck:IsShown() then
-                    rightAnchor = hdr.disableCheck
-                    rightPointX = -30
-                end
+				hdr.disableCheck:Hide()
+				if hdr.disableCheck.text then hdr.disableCheck.text:Hide() end
 
-                hdr.fixedCheck:ClearAllPoints()
-                hdr.fixedCheck:SetPoint("RIGHT", rightAnchor, "LEFT", -35, 0)
+				local selectedMode = "prio"
+				if hdr.bucketKey and DoiteAurasDB.bucketDisabled[hdr.bucketKey] == true then
+					selectedMode = "disabled"
+				elseif fixed then
+					selectedMode = "fixed"
+				elseif mode == "time" then
+					selectedMode = "time"
+				end
 
-                hdr.sortTime:ClearAllPoints()
-                hdr.sortTime:SetPoint("RIGHT", hdr.fixedCheck, "LEFT", -30, 0)
-
-                hdr.sortPrio:ClearAllPoints()
-                hdr.sortPrio:SetPoint("RIGHT", hdr.sortTime, "LEFT", -30, 0)
-
-                hdr.fixedCheck:SetChecked(fixed)
-                if fixed then
-                    hdr.sortPrio:SetChecked(false)
-                    hdr.sortTime:SetChecked(false)
-                else
-                    hdr.sortPrio:SetChecked(mode == "prio")
-                    hdr.sortTime:SetChecked(mode == "time")
-                end
-
-                hdr.sortPrio:Show()
-                hdr.sortTime:Show()
-                hdr.fixedCheck:Show()
-            else
-                hdr.sortPrio:Hide()
-                hdr.sortTime:Hide()
-                if hdr.fixedCheck then
-                    hdr.fixedCheck:Hide()
-                end
-            end
+				hdr.groupModeDropdown:ClearAllPoints()
+				hdr.groupModeDropdown:SetPoint("RIGHT", hdr, "RIGHT", 8, -2)
+				UIDropDownMenu_SetSelectedValue(hdr.groupModeDropdown, selectedMode)
+				UIDropDownMenu_SetText(hdr.groupModeLabels[selectedMode] or hdr.groupModeLabels.prio, hdr.groupModeDropdown)
+				hdr.groupModeDropdown:Show()
+	            else
+				hdr.disableCheck:Show()
+				if hdr.disableCheck.text then hdr.disableCheck.text:Show() end
+				hdr.groupModeDropdown:Hide()
+	            end
 
             -- Position header
             hdr:ClearAllPoints()
@@ -2989,7 +3143,7 @@ local function RefreshList()
                 local btn = spellButtons[key]
                 if not btn then
                     btn = CreateFrame("Frame", nil, listContent)
-                    btn:SetWidth(320); btn:SetHeight(50)
+                    btn:SetWidth(320); btn:SetHeight(53)
 
                     btn.fontString = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
                     btn.fontString:SetPoint("TOPLEFT", btn, "TOPLEFT", 15, -2)
@@ -3019,6 +3173,35 @@ local function RefreshList()
                     btn.upBtn:SetPushedTexture("Interface\\MainMenuBar\\UI-MainMenu-ScrollDownButton-Down")
                     btn.upBtn:SetPoint("RIGHT", btn.downBtn, "LEFT", -5, 0)
 
+                    btn.renameBtn = CreateFrame("Button", nil, btn, "UIPanelButtonTemplate")
+                    btn.renameBtn:SetWidth(55); btn.renameBtn:SetHeight(18)
+                    btn.renameBtn:SetPoint("RIGHT", btn.editBtn, "LEFT", -5, 0)
+                    btn.renameBtn:SetText("Rename")
+
+                    btn.downBtn:ClearAllPoints()
+                    btn.downBtn:SetPoint("RIGHT", btn.renameBtn, "LEFT", -5, 0)
+
+                    btn.renameInput = CreateFrame("EditBox", nil, btn, "InputBoxTemplate")
+                    btn.renameInput:SetWidth(120); btn.renameInput:SetHeight(18)
+                    btn.renameInput:SetAutoFocus(false)
+                    -- Rename-controls row anchor
+                    btn.renameInput:SetPoint("TOPLEFT", btn, "TOPLEFT", 15, -49)
+
+                    btn.renameAddBtn = CreateFrame("Button", nil, btn, "UIPanelButtonTemplate")
+                    btn.renameAddBtn:SetWidth(40); btn.renameAddBtn:SetHeight(18)
+                    btn.renameAddBtn:SetPoint("LEFT", btn.renameInput, "RIGHT", 5, 0)
+                    btn.renameAddBtn:SetText("Add")
+
+                    btn.renameResetBtn = CreateFrame("Button", nil, btn, "UIPanelButtonTemplate")
+                    btn.renameResetBtn:SetWidth(45); btn.renameResetBtn:SetHeight(18)
+                    btn.renameResetBtn:SetPoint("LEFT", btn.renameAddBtn, "RIGHT", 5, 0)
+                    btn.renameResetBtn:SetText("Reset")
+
+                    btn.renameBackBtn = CreateFrame("Button", nil, btn, "UIPanelButtonTemplate")
+                    btn.renameBackBtn:SetWidth(40); btn.renameBackBtn:SetHeight(18)
+                    btn.renameBackBtn:SetPoint("LEFT", btn.renameResetBtn, "RIGHT", 5, 0)
+                    btn.renameBackBtn:SetText("Back")
+
                     btn.sep = btn:CreateTexture(nil, "ARTWORK")
                     btn.sep:SetHeight(1)
                     btn.sep:SetPoint("BOTTOMLEFT", btn, "BOTTOMLEFT", 0, -2)
@@ -3029,6 +3212,7 @@ local function RefreshList()
                 end
 
                 btn._daInList = true
+                btn.daKey = key
 
                 -- Update row visuals
                 btn.fontString:SetText(display)
@@ -3079,7 +3263,9 @@ local function RefreshList()
                 btn.tag:SetText(typeText)
 
                 -- Scripts are re-bound each refresh (keeps exact existing logic with current locals)
-				btn.removeBtn:SetScript("OnClick", function()
+                btn.removeBtn:SetScript("OnClick", function()
+					DA_CancelRename()
+
 					-- detect if this was the last icon using them.
 					local groupName    = data and data.group
 					local categoryName = data and data.category
@@ -3092,6 +3278,11 @@ local function RefreshList()
 
 					-- Remove from DoiteAuras DB
 					DoiteAurasDB.spells[key] = nil
+
+					-- Keep group/category metadata maps in sync when last icon is deleted.
+					if DoiteGroup and DoiteGroup.CleanupDanglingGroupData then
+						pcall(DoiteGroup.CleanupDanglingGroupData)
+					end
 
 					-- Also drop any legacy DoiteDB entry so evaluation stops touching this key
 					if DoiteDB and DoiteDB.icons and DoiteDB.icons[key] then
@@ -3117,6 +3308,9 @@ local function RefreshList()
 
                     -- Rebuild ordering + UI (force icon refresh so delete is always visible instantly)
                     RebuildOrder()
+                    if DoiteGroup and DoiteGroup.InvalidateSortCache then
+                        DoiteGroup.InvalidateSortCache()
+                    end
                     RefreshList()
                     RefreshIcons(true)
 
@@ -3126,6 +3320,9 @@ local function RefreshList()
 				end)
 
                 btn.editBtn:SetScript("OnClick", function()
+                    DA_CancelRename()
+                    RefreshList()
+
                     local baseName = data.displayName or data.name or display
 
                     currentType = data.type or "Ability"
@@ -3161,6 +3358,8 @@ local function RefreshList()
                 end)
 
                 btn.downBtn:SetScript("OnClick", function()
+                    DA_CancelRename()
+
                     local isGrouped = DA_IsGrouped(data)
                     local moved = false
 
@@ -3183,6 +3382,8 @@ local function RefreshList()
                 end)
 
                 btn.upBtn:SetScript("OnClick", function()
+                    DA_CancelRename()
+
                     local isGrouped = DA_IsGrouped(data)
                     local moved = false
 
@@ -3202,10 +3403,39 @@ local function RefreshList()
                     end
                 end)
 
+                btn.renameInput:SetScript("OnTextChanged", DA_RenameOnTextChanged)
+                btn.renameBtn:SetScript("OnClick", DA_RenameStart)
+                btn.renameBackBtn:SetScript("OnClick", DA_RenameBack)
+                btn.renameResetBtn:SetScript("OnClick", DA_RenameReset)
+                btn.renameAddBtn:SetScript("OnClick", DA_RenameAdd)
+
+                if renameState.key == key then
+                    btn.renameInput:Show()
+                    btn.renameAddBtn:Show()
+                    btn.renameResetBtn:Show()
+                    btn.renameBackBtn:Show()
+                    btn:SetHeight(78)
+                    local currentShown = data.shownName or data.displayName or data.name or ""
+                    if btn.renameInput:GetText() ~= currentShown and not btn.renameInput:HasFocus() then
+                        btn.renameInput:SetText(currentShown)
+                    end
+                    DA_RenameUpdateAddState(btn)
+                else
+                    btn.renameInput:Hide()
+                    btn.renameAddBtn:Hide()
+                    btn.renameResetBtn:Hide()
+                    btn.renameBackBtn:Hide()
+                    btn:SetHeight(53)
+                end
+
                 -- Position row (ClearAllPoints is important when reusing frames)
                 btn:ClearAllPoints()
                 btn:SetPoint("TOPLEFT", listContent, "TOPLEFT", 0, yOffset)
-                yOffset = yOffset - 55
+                if renameState.key == key then
+                    yOffset = yOffset - 80
+                else
+                    yOffset = yOffset - 55
+                end
                 btn:Show()
             end
         end
@@ -3223,6 +3453,8 @@ end
 
 -- Add button
 addBtn:SetScript("OnClick", function()
+  DA_CancelRename()
+
   local t = currentType
   local name
 
@@ -3275,14 +3507,10 @@ addBtn:SetScript("OnClick", function()
               name = resolvedSpellName
 
               -- Pretty list label (your current behavior, but stored separately)
-              if resolvedSpellRank then
-                  shownName = resolvedSpellName .. " [" .. resolvedSpellRank .. "] - ID: " .. spellIdStr
-              else
-                  shownName = resolvedSpellName .. " - ID: " .. spellIdStr
-              end
+              shownName = DA_GetSpellIdShownName(spellIdStr)
           else
               -- Fallback if resolver isn't available yet
-              shownName = "Spell ID: " .. spellIdStr .. " (will update when seen)"
+              shownName = DA_GetSpellIdShownName(spellIdStr)
               name = shownName
           end
       end
