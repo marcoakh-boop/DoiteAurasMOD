@@ -213,6 +213,25 @@ local function _IsRogueOrDruid()
   return (c == "ROGUE" or c == "DRUID")
 end
 
+-- If an aura is ALWAYS applied by the player to the player, ownership is meaningless.
+local DOITE_AURA_OWNER_LOCK_ON_SELF = {
+  ["Zeal"] = true, ["Berserker Rage"] = true,
+}
+
+local function DoiteEdit_ShouldLockAuraOwnerOnSelf(data)
+  if not data then
+    return false
+  end
+  local name = data.displayName or currentKey
+  if not name or name == "" then
+    name = currentKey
+  end
+  if not name then
+    return false
+  end
+  return DOITE_AURA_OWNER_LOCK_ON_SELF[name] == true
+end
+
 local function DoiteEdit_YellowifyButton(btn)
   if not btn then
     return
@@ -9812,18 +9831,42 @@ local ic = c.item or {}
       end
     end
 
-    if amode == "found" then
-      -- Owner row visible for FOUND. Always enabled.
-      if condFrame.cond_aura_mine then
-        condFrame.cond_aura_mine:Show()
-        condFrame.cond_aura_mine:SetChecked(onlyMine)
-        _AO_SetEnabled(condFrame.cond_aura_mine, true, true)
-      end
+    -- If this aura is in the lock-list AND target is "On player (self)", ownership is meaningless.
+    local lockOwnerOnSelf = false
+    if isSelfOnly and DoiteEdit_ShouldLockAuraOwnerOnSelf and DoiteEdit_ShouldLockAuraOwnerOnSelf(data) then
+      lockOwnerOnSelf = true
+    end
 
-      if condFrame.cond_aura_others then
-        condFrame.cond_aura_others:Show()
-        condFrame.cond_aura_others:SetChecked(onlyOthers)
-        _AO_SetEnabled(condFrame.cond_aura_others, true, true)
+    if amode == "found" then
+      if lockOwnerOnSelf then
+        -- Grey out / unselectable / uncheck "My Aura" + "Others Aura"
+        if condFrame.cond_aura_mine then
+          condFrame.cond_aura_mine:Show()
+          condFrame.cond_aura_mine:SetChecked(false)
+          _AO_SetEnabled(condFrame.cond_aura_mine, false, true)
+        end
+        if condFrame.cond_aura_others then
+          condFrame.cond_aura_others:Show()
+          condFrame.cond_aura_others:SetChecked(false)
+          _AO_SetEnabled(condFrame.cond_aura_others, false, true)
+        end
+        if c.aura then
+          c.aura.onlyMine = nil
+          c.aura.onlyOthers = nil
+        end
+      else
+        -- Owner row visible for FOUND. Always enabled.
+        if condFrame.cond_aura_mine then
+          condFrame.cond_aura_mine:Show()
+          condFrame.cond_aura_mine:SetChecked(onlyMine)
+          _AO_SetEnabled(condFrame.cond_aura_mine, true, true)
+        end
+
+        if condFrame.cond_aura_others then
+          condFrame.cond_aura_others:Show()
+          condFrame.cond_aura_others:SetChecked(onlyOthers)
+          _AO_SetEnabled(condFrame.cond_aura_others, true, true)
+        end
       end
 
     elseif amode == "missing" then
