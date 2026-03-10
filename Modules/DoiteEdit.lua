@@ -36,14 +36,13 @@ local VfxCond_RefreshFromDB
 local VfxCond_ResetEditing
 
 local SOUND_FILES = {
-  "Arrow_Swoosh.ogg", "BITE.ogg", "ESPARK1.ogg", "Fireball.ogg", "Gasp.ogg",
-  "Hit1.ogg", "Hit2.ogg", "Hit3.ogg", "Hit4.ogg", "Hit5.ogg", "Hit6.ogg", "Hit7.ogg", "Hit8.ogg",
-  "PUNCH.ogg", "Squeakypig.ogg", "aggro.ogg", "bam.ogg", "bear_polar.ogg", "bigkiss.ogg", "burp4.ogg",
-  "cat2.ogg", "chant2.ogg", "chant4.ogg", "chimes.ogg", "cookie.ogg", "heartbeat.ogg", "hic3.ogg",
-  "huh_1.ogg", "hurricane.ogg", "hyena.ogg", "kaching.ogg", "moan.ogg", "panther1.ogg", "phone.ogg",
-  "rainroof.ogg", "rocket.ogg", "shipswhistle.ogg", "shot.ogg", "snakeatt.ogg", "sneeze.ogg", "sonar.ogg",
-  "splash.ogg", "swordecho.ogg", "throwknife.ogg", "thunder.ogg", "wickedmalelaugh1.ogg", "wilhelm.ogg",
-  "wlaugh.ogg", "wolf5.ogg", "yeehaw.ogg"
+  "JDO - Dont move, Shackles.ogg", "JDO - Loot banned.ogg", "Trend - Uwu.ogg",
+  "MPOWA - Aggro.ogg", "MPOWA - Arrow Swoosh.ogg", "MPOWA - Bam.ogg", "MPOWA - Bigkiss.ogg", "MPOWA - Bite.ogg", "MPOWA - Burp.ogg", "MPOWA - Cat.ogg", "MPOWA - Chant (1).ogg", "MPOWA - Chant (2).ogg", "MPOWA - Chimes.ogg", "MPOWA - Cookie.ogg", "MPOWA - ESpark.ogg", "MPOWA - Fireball.ogg", "MPOWA - Gasp.ogg",
+  "MPOWA - Heartbeat.ogg", "MPOWA - Hic.ogg", "MPOWA - Hit (1).ogg", "MPOWA - Hit (2).ogg", "MPOWA - Hit (3).ogg", "MPOWA - Hit (4).ogg", "MPOWA - Hit (5).ogg", "MPOWA - Hit (6).ogg", "MPOWA - Hit (7).ogg", "MPOWA - Hit (8).ogg",
+  "MPOWA - Huh.ogg", "MPOWA - Hurricane.ogg", "MPOWA - Hyena.ogg", "MPOWA - Kaching.ogg", "MPOWA - Moan.ogg", "MPOWA - Panther.ogg", "MPOWA - Polarbear.ogg", "MPOWA - Punch.ogg", "MPOWA - Phone.ogg",
+  "MPOWA - Rainroof.ogg", "MPOWA - Rocket.ogg", "MPOWA - Shipswhistle.ogg", "MPOWA - Shot.ogg", "MPOWA - Snakeatt.ogg", "MPOWA - Sneeze.ogg", "MPOWA - Sonar.ogg",
+  "MPOWA - Splash.ogg", "MPOWA - Squeakypig.ogg", "MPOWA - Swordecho.ogg", "MPOWA - Throwknife.ogg", "MPOWA - Thunder.ogg", "MPOWA - Wilhelm.ogg", "MPOWA - Wickedlaugh (1).ogg",
+  "MPOWA - Wickedlaugh (2).ogg", "MPOWA - Wolf.ogg", "MPOWA - Yeehaw.ogg"
 }
 
 local function DoiteEdit_SetDropdownInteractive(dd, enabled)
