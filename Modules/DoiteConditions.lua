@@ -6287,24 +6287,13 @@ local function _ApplyFadeAlphaToBackdrop(frame, alpha)
 
   -- pfUI backdrops are usually texture regions parented to frame.backdrop.
   if bd.GetRegions then
-    local r1, r2, r3, r4, r5, r6, r7, r8, r9, r10,
-          r11, r12, r13, r14, r15, r16 = bd:GetRegions()
-    if r1 and r1.SetVertexColor then _SetTextureVertexAlpha(r1, alpha) end
-    if r2 and r2.SetVertexColor then _SetTextureVertexAlpha(r2, alpha) end
-    if r3 and r3.SetVertexColor then _SetTextureVertexAlpha(r3, alpha) end
-    if r4 and r4.SetVertexColor then _SetTextureVertexAlpha(r4, alpha) end
-    if r5 and r5.SetVertexColor then _SetTextureVertexAlpha(r5, alpha) end
-    if r6 and r6.SetVertexColor then _SetTextureVertexAlpha(r6, alpha) end
-    if r7 and r7.SetVertexColor then _SetTextureVertexAlpha(r7, alpha) end
-    if r8 and r8.SetVertexColor then _SetTextureVertexAlpha(r8, alpha) end
-    if r9 and r9.SetVertexColor then _SetTextureVertexAlpha(r9, alpha) end
-    if r10 and r10.SetVertexColor then _SetTextureVertexAlpha(r10, alpha) end
-    if r11 and r11.SetVertexColor then _SetTextureVertexAlpha(r11, alpha) end
-    if r12 and r12.SetVertexColor then _SetTextureVertexAlpha(r12, alpha) end
-    if r13 and r13.SetVertexColor then _SetTextureVertexAlpha(r13, alpha) end
-    if r14 and r14.SetVertexColor then _SetTextureVertexAlpha(r14, alpha) end
-    if r15 and r15.SetVertexColor then _SetTextureVertexAlpha(r15, alpha) end
-    if r16 and r16.SetVertexColor then _SetTextureVertexAlpha(r16, alpha) end
+    local regions = { bd:GetRegions() }
+    local i, reg
+    for i, reg in ipairs(regions) do
+      if reg and reg.SetVertexColor then
+        _SetTextureVertexAlpha(reg, alpha)
+      end
+    end
   end
 
   -- Defensive: some backdrops expose direct texture handles.
