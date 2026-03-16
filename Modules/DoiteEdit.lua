@@ -10031,7 +10031,7 @@ local ic = c.item or {}
     local isTrackPetActive = (_IsHunterOrWarlock and _IsHunterOrWarlock() and c.aura and c.aura.trackpet) and true or false
     if condFrame.cond_aura_onself and condFrame.cond_aura_onself.text and condFrame.cond_aura_onself.text.SetText then
       if isTrackPetActive then
-        condFrame.cond_aura_onself.text:SetText("Target (pet)")
+        condFrame.cond_aura_onself.text:SetText("Target (Any)")
       else
         condFrame.cond_aura_onself.text:SetText("On player (self)")
       end
