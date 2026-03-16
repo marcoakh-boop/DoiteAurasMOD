@@ -5882,6 +5882,38 @@ do
     local namePart = white .. prefix .. (niceName or "") .. "|r"
     return typePart .. " " .. sep .. modePart .. " " .. sep .. unitPart .. ": " .. namePart
   end
+
+  local function AuraCond_ParseAuraInput(rawText)
+    local text = string.gsub(rawText or "", "^%s*(.-)%s*$", "%1")
+    if text == "" then
+      return nil
+    end
+
+    local sid = tonumber(text)
+    if sid and sid > 0 then
+      local sidStr = tostring(sid)
+      local displayName = sidStr
+
+      if type(GetSpellNameAndRankForId) == "function" then
+        local ok, sn = pcall(GetSpellNameAndRankForId, sid)
+        if ok and sn and sn ~= "" then
+          displayName = tostring(sn)
+        end
+      end
+
+      return {
+        name = displayName,
+        spellid = sidStr,
+        Addedviaspellid = true,
+      }
+    end
+
+    return {
+      name = AuraCond_TitleCase(text),
+      spellid = nil,
+      Addedviaspellid = nil,
+    }
+  end
   
   -- Only update stacks widget visibility + Continue enabled-state.
   -- IMPORTANT: This does NOT rebuild the whole row, so the editbox keeps focus.
@@ -6263,8 +6295,8 @@ do
     else
       text = row.editBox and row.editBox:GetText() or ""
     end
-    text = string.gsub(text or "", "^%s*(.-)%s*$", "%1")
-    if text == "" then
+    local parsedInput = AuraCond_ParseAuraInput(text)
+    if not parsedInput then
       return
     end
 
@@ -6291,7 +6323,9 @@ do
 	  buffType = buffType,
 	  mode = mode,
       unit = unit,
-	  name = AuraCond_TitleCase(text),
+	  name = parsedInput.name,
+	  spellid = parsedInput.spellid,
+	  Addedviaspellid = parsedInput.Addedviaspellid,
 	}
 
 	-- only for aura (buff/debuff), store optional stack settings
@@ -6956,6 +6990,38 @@ do
     return typePart .. " " .. sep .. modePart .. " " .. sep .. unitPart .. ": " .. namePart
   end
 
+  local function VfxCond_ParseAuraInput(rawText)
+    local text = string.gsub(rawText or "", "^%s*(.-)%s*$", "%1")
+    if text == "" then
+      return nil
+    end
+
+    local sid = tonumber(text)
+    if sid and sid > 0 then
+      local sidStr = tostring(sid)
+      local displayName = sidStr
+
+      if type(GetSpellNameAndRankForId) == "function" then
+        local ok, sn = pcall(GetSpellNameAndRankForId, sid)
+        if ok and sn and sn ~= "" then
+          displayName = tostring(sn)
+        end
+      end
+
+      return {
+        name = displayName,
+        spellid = sidStr,
+        Addedviaspellid = true,
+      }
+    end
+
+    return {
+      name = VfxCond_TitleCase(text),
+      spellid = nil,
+      Addedviaspellid = nil,
+    }
+  end
+
   local VfxCond_RowCounter = 0
 
   -- Small helper to reopen the dropdown a frame later
@@ -7560,8 +7626,8 @@ do
 	else
 	  text = row.editBox and row.editBox:GetText() or ""
 	end
-	text = string.gsub(text or "", "^%s*(.-)%s*$", "%1")
-	if text == "" then return end
+	local parsedInput = VfxCond_ParseAuraInput(text)
+	if not parsedInput then return end
 
     local buffType = row._choiceBuffType or "BUFF"
     local mode = row._choiceMode or "found"
@@ -7586,7 +7652,9 @@ do
 	  buffType = buffType,
 	  mode = mode,
 	  unit = unit,
-	  name = VfxCond_TitleCase(text),
+	  name = parsedInput.name,
+	  spellid = parsedInput.spellid,
+	  Addedviaspellid = parsedInput.Addedviaspellid,
 	  fade = nil,
 	  fadeAlpha = 0,
 	}
