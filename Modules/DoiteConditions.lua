@@ -1067,12 +1067,16 @@ local _ItemScanGen = 0
 
 local function _InvalidateItemScanCache()
   _ItemScanGen = _ItemScanGen + 1
+  -- Keep cache bounded: keys from removed/renamed editor icons can otherwise
+  -- stay resident for the whole session. Scans are event-driven, so clearing
+  -- here is safe and prevents long-session growth.
+  for k in pairs(_ItemScanCache) do
+    _ItemScanCache[k] = nil
+  end
+
   -- Keep gen bounded (paranoid)
   if _ItemScanGen > 1000000 then
     _ItemScanGen = 1
-    for k in pairs(_ItemScanCache) do
-      _ItemScanCache[k] = nil
-    end
   end
 end
 
