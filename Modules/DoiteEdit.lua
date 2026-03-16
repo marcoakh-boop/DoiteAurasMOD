@@ -2224,7 +2224,7 @@ local function CreateConditionsUI()
   condFrame.cond_aura_class_note:SetText("No class-specific option added for your class.")
   condFrame.cond_aura_class_note:Hide()
 
-  condFrame.cond_aura_trackpet = MakeCheck("DoiteCond_Aura_TrackPet", "Track this Aura on pet", 0, auraClassRowY - 25)
+  condFrame.cond_aura_trackpet = MakeCheck("DoiteCond_Aura_TrackPet", "Track this Aura on pet", 0, auraClassRowY)
   condFrame.cond_aura_trackpet:Hide()
 
   -- Aura: Sound effects
@@ -8379,7 +8379,7 @@ local function UpdateConditionsUI(data)
       condFrame.cond_ability_cp_val_enter:Hide()
       if condFrame.cond_ability_class_note then
         if _IsHunterOrWarlock and _IsHunterOrWarlock() then
-          condFrame.cond_ability_class_note:SetText("Pet tracking added for buffs/debuffs here.")
+          condFrame.cond_ability_class_note:SetText("Pet-tracking option for buff/debuff under this section.")
         else
           condFrame.cond_ability_class_note:SetText("No class-specific option added for your class.")
         end
@@ -8560,6 +8560,9 @@ local function UpdateConditionsUI(data)
     end
     if condFrame.cond_aura_class_note then
       condFrame.cond_aura_class_note:Hide()
+    end
+    if condFrame.cond_aura_trackpet then
+      condFrame.cond_aura_trackpet:Hide()
     end
     if condFrame.cond_aura_weaponDD then
       condFrame.cond_aura_weaponDD:Hide()
@@ -9510,7 +9513,7 @@ local ic = c.item or {}
       condFrame.cond_item_cp_val_enter:Hide()
       if condFrame.cond_item_class_note then
         if _IsHunterOrWarlock and _IsHunterOrWarlock() then
-          condFrame.cond_item_class_note:SetText("Pet tracking added for buffs/debuffs here.")
+          condFrame.cond_item_class_note:SetText("Pet-tracking option for buff/debuff under this section.")
         else
           condFrame.cond_item_class_note:SetText("No class-specific option added for your class.")
         end
@@ -9680,6 +9683,9 @@ local ic = c.item or {}
     end
     if condFrame.cond_aura_class_note then
       condFrame.cond_aura_class_note:Hide()
+    end
+    if condFrame.cond_aura_trackpet then
+      condFrame.cond_aura_trackpet:Hide()
     end
 
   elseif data.type == "Custom" then
@@ -10149,11 +10155,11 @@ local ic = c.item or {}
       condFrame.cond_aura_cp_val_enter:Hide()
       if condFrame.cond_aura_class_note then
         if _IsHunterOrWarlock and _IsHunterOrWarlock() then
-          condFrame.cond_aura_class_note:SetText("Pet tracking added for buffs/debuffs here.")
+          condFrame.cond_aura_class_note:Hide()
         else
           condFrame.cond_aura_class_note:SetText("No class-specific option added for your class.")
+          condFrame.cond_aura_class_note:Show()
         end
-        condFrame.cond_aura_class_note:Show()
       end
     end
 
