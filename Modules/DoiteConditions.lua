@@ -1090,9 +1090,26 @@ local function _ScanPlayerItemInstances(data)
   -- Cache key
   local cacheKey = nil
   if expectedId then
-    cacheKey = "id:" .. expectedId
+    if data._daItemScanCacheKeyType ~= "id" or data._daItemScanCacheKeyId ~= expectedId then
+      data._daItemScanCacheKey = "id:" .. expectedId
+      data._daItemScanCacheKeyType = "id"
+      data._daItemScanCacheKeyId = expectedId
+      data._daItemScanCacheKeyName = nil
+    end
+    cacheKey = data._daItemScanCacheKey
   elseif expectedName and expectedName ~= "" then
-    cacheKey = "name:" .. expectedName
+    if data._daItemScanCacheKeyType ~= "name" or data._daItemScanCacheKeyName ~= expectedName then
+      data._daItemScanCacheKey = "name:" .. expectedName
+      data._daItemScanCacheKeyType = "name"
+      data._daItemScanCacheKeyName = expectedName
+      data._daItemScanCacheKeyId = nil
+    end
+    cacheKey = data._daItemScanCacheKey
+  else
+    data._daItemScanCacheKey = nil
+    data._daItemScanCacheKeyType = nil
+    data._daItemScanCacheKeyId = nil
+    data._daItemScanCacheKeyName = nil
   end
 
   if cacheKey then
@@ -1182,11 +1199,6 @@ local function _ScanPlayerItemInstances(data)
     bag = bag + 1
   end
 
-  local firstBagLoc = nil
-  if firstBagBag ~= nil then
-    firstBagLoc = { bag = firstBagBag, slot = firstBagSlot }
-  end
-
   -- Store in cache (reusing bagLoc table)
   if cacheKey then
     local c = _ItemScanCache[cacheKey]
@@ -1202,12 +1214,12 @@ local function _ScanPlayerItemInstances(data)
     c.eqCount = eqCount
     c.bagCount = bagCount
 
-    if firstBagLoc then
+    if firstBagBag ~= nil then
       if not c.bagLoc then
         c.bagLoc = {}
       end
-      c.bagLoc.bag = firstBagLoc.bag
-      c.bagLoc.slot = firstBagLoc.slot
+      c.bagLoc.bag = firstBagBag
+      c.bagLoc.slot = firstBagSlot
     else
       c.bagLoc = nil
     end
@@ -1215,7 +1227,14 @@ local function _ScanPlayerItemInstances(data)
     return c.hasEquipped, c.hasBag, c.eqSlot, c.bagLoc, c.eqCount, c.bagCount
   end
 
-  return hasEquipped, hasBag, firstEquippedSlot, firstBagLoc, eqCount, bagCount
+  if firstBagBag ~= nil then
+    data._daItemScanBagLoc = data._daItemScanBagLoc or {}
+    data._daItemScanBagLoc.bag = firstBagBag
+    data._daItemScanBagLoc.slot = firstBagSlot
+    return hasEquipped, hasBag, firstEquippedSlot, data._daItemScanBagLoc, eqCount, bagCount
+  end
+
+  return hasEquipped, hasBag, firstEquippedSlot, nil, eqCount, bagCount
 end
 
 -- Single inventory slot: does it have an item and is that item on cooldown?
