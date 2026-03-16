@@ -4058,6 +4058,9 @@ function UpdateItemStacksForMissing()
       local d = EnsureDBEntry(currentKey);
       d.conditions.aura = d.conditions.aura or {}
       d.conditions.aura.trackpet = this:GetChecked() and true or false
+      if UpdateCondFrameForKey then
+        UpdateCondFrameForKey(currentKey)
+      end
       SafeRefresh();
       SafeEvaluate()
     end)
@@ -10025,6 +10028,15 @@ local ic = c.item or {}
     condFrame.cond_aura_target_harm:SetChecked(tm)
     condFrame.cond_aura_onself:SetChecked(ts)
 
+    local isTrackPetActive = (_IsHunterOrWarlock and _IsHunterOrWarlock() and c.aura and c.aura.trackpet) and true or false
+    if condFrame.cond_aura_onself and condFrame.cond_aura_onself.text and condFrame.cond_aura_onself.text.SetText then
+      if isTrackPetActive then
+        condFrame.cond_aura_onself.text:SetText("Target (pet)")
+      else
+        condFrame.cond_aura_onself.text:SetText("On player (self)")
+      end
+    end
+
     -- === TARGET DISTANCE & TYPE (Aura) ===
     if condFrame.cond_aura_distanceDD then
       condFrame.cond_aura_distanceDD:Show()
@@ -10238,7 +10250,9 @@ local ic = c.item or {}
 
     -- If this aura is in the lock-list AND target is "On player (self)", ownership is meaningless.
     local lockOwnerOnSelf = false
-    if isSelfOnly and DoiteEdit_ShouldLockAuraOwnerOnSelf and DoiteEdit_ShouldLockAuraOwnerOnSelf(data) then
+    if isTrackPetActive then
+      lockOwnerOnSelf = true
+    elseif isSelfOnly and DoiteEdit_ShouldLockAuraOwnerOnSelf and DoiteEdit_ShouldLockAuraOwnerOnSelf(data) then
       lockOwnerOnSelf = true
     end
 
@@ -10318,8 +10332,8 @@ local ic = c.item or {}
       -- === Text: Time remaining ===
       condFrame.cond_aura_text_time:Show()
 
-      if isSelfOnly then
-        -- On Player (self): user may freely toggle Text: Remaining
+      if isTrackPetActive or isSelfOnly then
+        -- Pet-tracking (or On Player self): user may freely toggle Text: Remaining
         DoiteEdit_EnableCheck(condFrame.cond_aura_text_time)
         condFrame.cond_aura_text_time:SetChecked((c.aura and c.aura.textTimeRemaining) or false)
 
@@ -10461,8 +10475,8 @@ local ic = c.item or {}
         condFrame.cond_aura_remaining_cb.text:SetText("Remaining")
       end
 
-      if isSelfOnly then
-        -- On Player (self): user can freely toggle Remaining
+      if isTrackPetActive or isSelfOnly then
+        -- Pet-tracking (or On Player self): user can freely toggle Remaining
         DoiteEdit_EnableCheck(condFrame.cond_aura_remaining_cb)
         condFrame.cond_aura_remaining_cb:SetChecked(aRemEnabled)
 
