@@ -20,7 +20,8 @@ local DoitePetAuras = {
   isSupportedClass = false,
   classChecked = false,
   lastUsageScanAt = 0,
-  initialized = false
+  initialized = false,
+  hasTrackPetOverlayTicker = false
 }
 
 _G["DoitePetAuras"] = DoitePetAuras
@@ -88,37 +89,53 @@ end
 
 local function _AnyTrackPetInIconData(data)
   if type(data) ~= "table" then
-    return false
+    return false, false
   end
 
   local c = data.conditions
   if type(c) ~= "table" then
-    return false
+    return false, false
   end
 
+  local hasTrackPet = false
+  local needsOverlayTicker = false
+
   if type(c.aura) == "table" and c.aura.trackpet == true then
-    return true
+    hasTrackPet = true
+    if c.aura.textTimeRemaining == true or c.aura.textStackCounter == true then
+      needsOverlayTicker = true
+    end
   end
 
   if _AnyTrackPetInAuraConditions(c.ability and c.ability.auraConditions) then
-    return true
+    hasTrackPet = true
   end
   if _AnyTrackPetInAuraConditions(c.item and c.item.auraConditions) then
-    return true
+    hasTrackPet = true
   end
   if _AnyTrackPetInAuraConditions(c.aura and c.aura.auraConditions) then
-    return true
+    hasTrackPet = true
   end
 
-  return false
+  return hasTrackPet, needsOverlayTicker
 end
 
-local function _AnyTrackPetConfigured()
+local function _ScanTrackPetUsage()
+  local hasTrackPet = false
+  local needsOverlayTicker = false
+
   if DoiteAurasDB and DoiteAurasDB.spells then
     local _, data
     for _, data in pairs(DoiteAurasDB.spells) do
-      if _AnyTrackPetInIconData(data) then
-        return true
+      local hasTP, needTicker = _AnyTrackPetInIconData(data)
+      if hasTP then
+        hasTrackPet = true
+      end
+      if needTicker then
+        needsOverlayTicker = true
+      end
+      if hasTrackPet and needsOverlayTicker then
+        return true, true
       end
     end
   end
@@ -126,13 +143,20 @@ local function _AnyTrackPetConfigured()
   if DoiteDB and DoiteDB.icons then
     local _, data
     for _, data in pairs(DoiteDB.icons) do
-      if _AnyTrackPetInIconData(data) then
-        return true
+      local hasTP, needTicker = _AnyTrackPetInIconData(data)
+      if hasTP then
+        hasTrackPet = true
+      end
+      if needTicker then
+        needsOverlayTicker = true
+      end
+      if hasTrackPet and needsOverlayTicker then
+        return true, true
       end
     end
   end
 
-  return false
+  return hasTrackPet, needsOverlayTicker
 end
 
 local function _SetEnabledState(enabled)
@@ -157,6 +181,7 @@ local function _SetEnabledState(enabled)
     _ClearMap(DoitePetAuras.debuffNameToId)
     _ClearMap(DoitePetAuras.buffExpiresAt)
     _ClearMap(DoitePetAuras.debuffExpiresAt)
+    DoitePetAuras.hasTrackPetOverlayTicker = false
   end
 end
 
@@ -177,7 +202,9 @@ local function _RefreshEnabledState(force)
   end
 
   DoitePetAuras.lastUsageScanAt = now
-  _SetEnabledState(_AnyTrackPetConfigured())
+  local hasTrackPet, needsOverlayTicker = _ScanTrackPetUsage()
+  DoitePetAuras.hasTrackPetOverlayTicker = needsOverlayTicker and true or false
+  _SetEnabledState(hasTrackPet)
   return DoitePetAuras.enabled
 end
 
@@ -553,6 +580,40 @@ f:SetScript("OnEvent", function()
 
   if needsEval and DoiteConditions and DoiteConditions.EvaluateAll then
     DoiteConditions:EvaluateAll()
+  end
+end)
+
+local _smoothTextAccum = 0
+
+f:SetScript("OnUpdate", function()
+  if DoitePetAuras.enabled ~= true then
+    _smoothTextAccum = 0
+    return
+  end
+
+  if not DoitePetAuras.petGuid or not UnitExists or not UnitExists("pet") then
+    _smoothTextAccum = 0
+    return
+  end
+
+  if DoitePetAuras.hasTrackPetOverlayTicker ~= true then
+    _smoothTextAccum = 0
+    return
+  end
+
+  if (not next(DoitePetAuras.buffIds)) and (not next(DoitePetAuras.debuffIds)) then
+    _smoothTextAccum = 0
+    return
+  end
+
+  _smoothTextAccum = _smoothTextAccum + (arg1 or 0)
+  if _smoothTextAccum < 0.10 then
+    return
+  end
+  _smoothTextAccum = 0
+
+  if DoiteConditions_UpdateTimeText then
+    DoiteConditions_UpdateTimeText()
   end
 end)
 
