@@ -16,6 +16,10 @@ local DoitePetAuras = {
   debuffExpiresAt = {},
   spellDurationCache = {},
   petGuid = nil,
+  enabled = false,
+  isSupportedClass = false,
+  classChecked = false,
+  lastUsageScanAt = 0,
   initialized = false
 }
 
@@ -57,6 +61,117 @@ local function _GetSpellNameById(spellId)
   end
 
   return nil
+end
+
+local function _IsSupportedClass()
+  local _, cls = UnitClass("player")
+  cls = cls and string.upper(cls) or ""
+  return (cls == "WARLOCK" or cls == "HUNTER") and true or false
+end
+
+local function _AnyTrackPetInAuraConditions(list)
+  if type(list) ~= "table" then
+    return false
+  end
+
+  local _, cond
+  for _, cond in pairs(list) do
+    if type(cond) == "table" and cond.trackpet == true then
+      return true
+    end
+  end
+
+  return false
+end
+
+local function _AnyTrackPetInIconData(data)
+  if type(data) ~= "table" then
+    return false
+  end
+
+  local c = data.conditions
+  if type(c) ~= "table" then
+    return false
+  end
+
+  if type(c.aura) == "table" and c.aura.trackpet == true then
+    return true
+  end
+
+  if _AnyTrackPetInAuraConditions(c.ability and c.ability.auraConditions) then
+    return true
+  end
+  if _AnyTrackPetInAuraConditions(c.item and c.item.auraConditions) then
+    return true
+  end
+  if _AnyTrackPetInAuraConditions(c.aura and c.aura.auraConditions) then
+    return true
+  end
+
+  return false
+end
+
+local function _AnyTrackPetConfigured()
+  if DoiteAurasDB and DoiteAurasDB.spells then
+    local _, data
+    for _, data in pairs(DoiteAurasDB.spells) do
+      if _AnyTrackPetInIconData(data) then
+        return true
+      end
+    end
+  end
+
+  if DoiteDB and DoiteDB.icons then
+    local _, data
+    for _, data in pairs(DoiteDB.icons) do
+      if _AnyTrackPetInIconData(data) then
+        return true
+      end
+    end
+  end
+
+  return false
+end
+
+local function _SetEnabledState(enabled)
+  local want = enabled and true or false
+  if DoitePetAuras.enabled == want then
+    return
+  end
+
+  DoitePetAuras.enabled = want
+  if not want then
+    DoitePetAuras.petGuid = nil
+    _ClearMap(DoitePetAuras.buffs)
+    _ClearMap(DoitePetAuras.debuffs)
+    _ClearMap(DoitePetAuras.buffIds)
+    _ClearMap(DoitePetAuras.debuffIds)
+    _ClearMap(DoitePetAuras.buffNameToId)
+    _ClearMap(DoitePetAuras.debuffNameToId)
+    _ClearMap(DoitePetAuras.buffExpiresAt)
+    _ClearMap(DoitePetAuras.debuffExpiresAt)
+  end
+end
+
+local function _RefreshEnabledState(force)
+  if DoitePetAuras.classChecked ~= true then
+    DoitePetAuras.isSupportedClass = _IsSupportedClass()
+    DoitePetAuras.classChecked = true
+  end
+
+  if DoitePetAuras.isSupportedClass ~= true then
+    _SetEnabledState(false)
+    return false
+  end
+
+  local now = GetTime and GetTime() or 0
+  if force ~= true and DoitePetAuras.lastUsageScanAt and (now - DoitePetAuras.lastUsageScanAt) < 1.0 then
+    return DoitePetAuras.enabled
+  end
+
+  DoitePetAuras.lastUsageScanAt = now
+  _SetEnabledState(_AnyTrackPetConfigured())
+  return DoitePetAuras.enabled
 end
 
 local function _GetDurationSecondsBySpellId(spellId)
@@ -223,16 +338,25 @@ local function _ResetForPetChange()
 end
 
 function DoitePetAuras.Refresh()
+  if not _RefreshEnabledState(true) then
+    return
+  end
   DoitePetAuras.petGuid = GetUnitGUID and GetUnitGUID("pet") or nil
   _ScanPetAuras()
 end
 
 function DoitePetAuras.CanTrack()
+  if not _RefreshEnabledState(false) then
+    return false
+  end
   return UnitExists("pet") and true or false
 end
 
 function DoitePetAuras.TargetIsPet()
-  return UnitExists("pet") and UnitExists("target") and UnitIsUnit("target", "pet") and true or false
+  if not DoitePetAuras.CanTrack() then
+    return false
+  end
+  return UnitExists("target") and UnitIsUnit("target", "pet") and true or false
 end
 
 function DoitePetAuras.HasAura(auraName, auraSpellId, useSpellIdOnly, wantBuff, wantDebuff)
@@ -356,8 +480,17 @@ f:SetScript("OnEvent", function()
   local needsEval = false
 
   if evt == "PLAYER_ENTERING_WORLD" then
+    DoitePetAuras.isSupportedClass = _IsSupportedClass()
+    DoitePetAuras.classChecked = true
+    DoitePetAuras.lastUsageScanAt = 0
+    if not _RefreshEnabledState(true) then
+      return
+    end
+
     _ResetForPetChange()
     needsEval = true
+  elseif not _RefreshEnabledState(false) then
+    return
   elseif evt == "UNIT_PET_GUID" then
     local isPlayer = arg2
     if isPlayer == 1 and guid then
@@ -417,4 +550,9 @@ f:SetScript("OnEvent", function()
 end)
 
 DoitePetAuras.initialized = true
-_ResetForPetChange()
+DoitePetAuras.isSupportedClass = _IsSupportedClass()
+DoitePetAuras.classChecked = true
+DoitePetAuras.lastUsageScanAt = 0
+if _RefreshEnabledState(true) then
+  _ResetForPetChange()
+end
