@@ -25,6 +25,8 @@ local DoitePetAuras = {
 
 _G["DoitePetAuras"] = DoitePetAuras
 
+local _ResetForPetChange
+
 local function _ClearMap(t)
   for k in pairs(t) do
     t[k] = nil
@@ -135,12 +137,17 @@ end
 
 local function _SetEnabledState(enabled)
   local want = enabled and true or false
-  if DoitePetAuras.enabled == want then
+  local wasEnabled = DoitePetAuras.enabled == true
+  if wasEnabled == want then
     return
   end
 
   DoitePetAuras.enabled = want
-  if not want then
+  if want then
+    if _ResetForPetChange then
+      _ResetForPetChange()
+    end
+  else
     DoitePetAuras.petGuid = nil
     _ClearMap(DoitePetAuras.buffs)
     _ClearMap(DoitePetAuras.debuffs)
@@ -330,7 +337,7 @@ local function _SetAuraBySpellId(spellId, stacks, wantDebuff)
   _UpdateExpiresBySpellId(sid, stacks, wantDebuff, true)
 end
 
-local function _ResetForPetChange()
+_ResetForPetChange = function()
   DoitePetAuras.petGuid = GetUnitGUID and GetUnitGUID("pet") or nil
   _ClearMap(DoitePetAuras.buffExpiresAt)
   _ClearMap(DoitePetAuras.debuffExpiresAt)
