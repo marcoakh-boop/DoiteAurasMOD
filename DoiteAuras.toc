@@ -2,13 +2,14 @@
 ## Title: |cff6FA8DC[DoiteAuras]|r
 ## Notes: WeakAuras-light addon for vanilla by Doite.
 ## Author: Doite
-## Version: 1.6.8
+## Version: 1.6.9
 ## SavedVariablesPerCharacter: DoiteAurasDB
 
 DoiteAuras.lua
 
 Modules\DoiteBuffData.lua
 Modules\DoitePlayerAuras.lua
+Modules\DoitePetAuras.lua
 Modules\DoiteEdit.lua
 Modules\DoiteGlow.lua
 Modules\DoiteConditions.lua
