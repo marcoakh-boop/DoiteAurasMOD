@@ -2902,8 +2902,8 @@ local function _AuraConditions_CheckEntry(entry)
     dataTmp.name = name
     dataTmp.displayName = name
     dataTmp.itemName = name
-    dataTmp.itemId = nil
-    dataTmp.itemID = nil
+    dataTmp.itemId = entry.itemId or entry.itemID
+    dataTmp.itemID = entry.itemID or entry.itemId
 
     local cTmp = DoiteConditions._auraCondItemCondTmp
     if not cTmp then
@@ -4987,9 +4987,52 @@ local function _RebuildTargetModsFlags()
   if DoiteAurasDB and DoiteAurasDB.spells then
     for key, data in pairs(DoiteAurasDB.spells) do
       if type(data) == "table" and data.type then
-        if data.type == "Item" and DoiteConditions then
+        local hasItemLogic = false
+
+        if data.type == "Item" then
+          hasItemLogic = true
+        else
+          local bucketNames = { "ability", "aura", "item" }
+          local b = 1
+          while b <= table.getn(bucketNames) do
+            local bucket = data.conditions and data.conditions[bucketNames[b]]
+            if bucket then
+              local auraList = bucket.auraConditions
+              local vfxList = bucket.vfxConditions
+              local i, entry
+
+              if auraList and table.getn(auraList) > 0 then
+                for i = 1, table.getn(auraList) do
+                  entry = auraList[i]
+                  if entry and entry.buffType == "ITEM" then
+                    hasItemLogic = true
+                    break
+                  end
+                end
+              end
+
+              if (not hasItemLogic) and vfxList and table.getn(vfxList) > 0 then
+                for i = 1, table.getn(vfxList) do
+                  entry = vfxList[i]
+                  if entry and entry.buffType == "ITEM" then
+                    hasItemLogic = true
+                    break
+                  end
+                end
+              end
+            end
+
+            if hasItemLogic then
+              break
+            end
+            b = b + 1
+          end
+        end
+
+        if hasItemLogic and DoiteConditions then
           DoiteConditions._hasAnyItemLogic = true
         end
+
         if (data.type == "Ability" or data.type == "Item")
             and _IconHasTargetMods_AbilityOrItem(data) then
           _hasAnyTargetMods_Ability = true
@@ -4998,7 +5041,7 @@ local function _RebuildTargetModsFlags()
             and _IconHasTargetMods_Aura(data) then
           _hasAnyTargetMods_Aura = true
         end
-        if _hasAnyTargetMods_Ability and _hasAnyTargetMods_Aura then
+        if _hasAnyTargetMods_Ability and _hasAnyTargetMods_Aura and DoiteConditions and DoiteConditions._hasAnyItemLogic then
           return
         end
       end
@@ -5009,9 +5052,52 @@ local function _RebuildTargetModsFlags()
   if DoiteDB and DoiteDB.icons then
     for key, data in pairs(DoiteDB.icons) do
       if type(data) == "table" and data.type then
-        if data.type == "Item" and DoiteConditions then
+        local hasItemLogic = false
+
+        if data.type == "Item" then
+          hasItemLogic = true
+        else
+          local bucketNames = { "ability", "aura", "item" }
+          local b = 1
+          while b <= table.getn(bucketNames) do
+            local bucket = data.conditions and data.conditions[bucketNames[b]]
+            if bucket then
+              local auraList = bucket.auraConditions
+              local vfxList = bucket.vfxConditions
+              local i, entry
+
+              if auraList and table.getn(auraList) > 0 then
+                for i = 1, table.getn(auraList) do
+                  entry = auraList[i]
+                  if entry and entry.buffType == "ITEM" then
+                    hasItemLogic = true
+                    break
+                  end
+                end
+              end
+
+              if (not hasItemLogic) and vfxList and table.getn(vfxList) > 0 then
+                for i = 1, table.getn(vfxList) do
+                  entry = vfxList[i]
+                  if entry and entry.buffType == "ITEM" then
+                    hasItemLogic = true
+                    break
+                  end
+                end
+              end
+            end
+
+            if hasItemLogic then
+              break
+            end
+            b = b + 1
+          end
+        end
+
+        if hasItemLogic and DoiteConditions then
           DoiteConditions._hasAnyItemLogic = true
         end
+
         if (data.type == "Ability" or data.type == "Item")
             and _IconHasTargetMods_AbilityOrItem(data) then
           _hasAnyTargetMods_Ability = true
@@ -5020,7 +5106,7 @@ local function _RebuildTargetModsFlags()
             and _IconHasTargetMods_Aura(data) then
           _hasAnyTargetMods_Aura = true
         end
-        if _hasAnyTargetMods_Ability and _hasAnyTargetMods_Aura then
+        if _hasAnyTargetMods_Ability and _hasAnyTargetMods_Aura and DoiteConditions and DoiteConditions._hasAnyItemLogic then
           return
         end
       end
@@ -7765,8 +7851,13 @@ function DoiteConditions_OnUpdate(dt)
   _timeEvalAccum = _timeEvalAccum + dt
   if _timeEvalAccum >= 0.5 then
     _timeEvalAccum = 0
+
     if _hasAnyAbilityTimeLogic then
       dirty_ability_time = true
+    end
+
+    if DoiteConditions and DoiteConditions._hasAnyItemLogic then
+      dirty_aura = true
     end
   end
 
@@ -8002,6 +8093,9 @@ eventFrame:SetScript("OnEvent", function()
       or event == "UPDATE_SHAPESHIFT_FORM" then
 
     dirty_ability = true
+    if DoiteConditions and DoiteConditions._hasAnyItemLogic then
+      dirty_aura = true
+    end
 
   elseif event == "UNIT_HEALTH" then
     if arg1 == "player" or arg1 == "target" then
@@ -8037,6 +8131,7 @@ eventFrame:SetScript("OnEvent", function()
     if DoiteConditions and DoiteConditions._hasAnyItemLogic then
       if GetTime() >= (DoiteConditions._daLastBagCooldownDirtyAt or 0) then
         dirty_ability = true
+        dirty_aura = true
         DoiteConditions._daLastBagCooldownDirtyAt = GetTime() + 0.10
       end
     end

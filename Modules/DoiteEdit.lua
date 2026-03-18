@@ -5845,26 +5845,115 @@ do
 
   local function AuraCond_InitItemDropdown(row)
     if not row or not row.itemDD then return end
-    row._itemOptions = AuraCond_BuildItemOptions()
-    UIDropDownMenu_Initialize(row.itemDD, function()
-      local i, info
-      for i = 1, table.getn(row._itemOptions) do
-        info = {}
-        info.text = row._itemOptions[i]
-        info.value = row._itemOptions[i]
-        local picked = info.value
-        info.func = function(button)
-          local val = (button and button.value) or picked
-          row._itemName = val
-          if UIDropDownMenu_SetText then pcall(UIDropDownMenu_SetText, val, row.itemDD) end
-          if _GoldifyDD then _GoldifyDD(row.itemDD) end
+
+    local items = AuraCond_BuildItemOptions()
+    row._itemOptions = items
+
+    local total = table.getn(items)
+    local perPage = 10
+
+    if total == 0 then
+      UIDropDownMenu_Initialize(row.itemDD, function() end)
+      if UIDropDownMenu_SetText then
+        pcall(UIDropDownMenu_SetText, "No items found", row.itemDD)
+      end
+      return
+    end
+
+    local maxPage = math.max(1, math.ceil(total / perPage))
+    local page = row._itemPage or 1
+    if page < 1 then page = 1 end
+    if page > maxPage then page = maxPage end
+    row._itemPage = page
+
+    local function ReopenItemDDNextFrame()
+      local f = row.itemDD and row.itemDD._reopenFrame
+      if not f then
+        f = CreateFrame("Frame", nil, UIParent)
+        if row.itemDD then
+          row.itemDD._reopenFrame = f
         end
-        info.checked = (row._itemName == info.value)
+        f:Hide()
+        f:SetScript("OnUpdate", function()
+          f:Hide()
+          if row and row.itemDD then
+            ToggleDropDownMenu(nil, nil, row.itemDD, row.itemDD, 0, 0)
+          end
+        end)
+      end
+      f:Show()
+    end
+
+    local startIndex = (page - 1) * perPage + 1
+    local endIndex = math.min(startIndex + perPage - 1, total)
+
+    UIDropDownMenu_Initialize(row.itemDD, function(frame, level, menuList)
+      local info
+
+      if page > 1 then
+        info = {}
+        info.text = "|cffffd000<< Previous|r"
+        info.value = "PREV"
+        info.notCheckable = true
+        info.func = function()
+          row._itemPage = page - 1
+          AuraCond_InitItemDropdown(row)
+          if CloseDropDownMenus then
+            CloseDropDownMenus()
+          end
+          ReopenItemDDNextFrame()
+        end
+        UIDropDownMenu_AddButton(info)
+      end
+
+      local idx = startIndex
+      while idx <= endIndex do
+        local name = items[idx]
+        info = {}
+        info.text = name
+        info.value = name
+        local pickedName = name
+        info.func = function(button)
+          local val = (button and button.value) or pickedName
+          row._itemName = val
+          if UIDropDownMenu_SetSelectedValue then
+            pcall(UIDropDownMenu_SetSelectedValue, row.itemDD, val)
+          end
+          if UIDropDownMenu_SetText then
+            pcall(UIDropDownMenu_SetText, val, row.itemDD)
+          end
+          if _GoldifyDD then
+            _GoldifyDD(row.itemDD)
+          end
+        end
+        info.checked = (row._itemName == name)
+        UIDropDownMenu_AddButton(info)
+        idx = idx + 1
+      end
+
+      if page < maxPage then
+        info = {}
+        info.text = "|cffffd000Next >>|r"
+        info.value = "NEXT"
+        info.notCheckable = true
+        info.func = function()
+          row._itemPage = page + 1
+          AuraCond_InitItemDropdown(row)
+          if CloseDropDownMenus then
+            CloseDropDownMenus()
+          end
+          ReopenItemDDNextFrame()
+        end
         UIDropDownMenu_AddButton(info)
       end
     end)
-    if UIDropDownMenu_SetText then pcall(UIDropDownMenu_SetText, row._itemName or "Select item", row.itemDD) end
-    if _GoldifyDD then _GoldifyDD(row.itemDD) end
+
+    if UIDropDownMenu_SetText then
+      pcall(UIDropDownMenu_SetText, row._itemName or "Select item", row.itemDD)
+    end
+    if _GoldifyDD then
+      _GoldifyDD(row.itemDD)
+    end
   end
 
   local function AuraCond_BuildDescription(buffType, mode, unit, name, stacksEnabled, stacksComp, stacksVal)
@@ -5914,8 +6003,24 @@ do
       local cdWord = (unit == "oncd") and "On CD" or "Not on CD"
       local itemPart = yellow .. "Item" .. "|r"
       local wherePart = yellow .. whereWord .. "|r"
+
+      local prefix = ""
+      if stacksEnabled and stacksComp and stacksComp ~= "" and stacksVal and tostring(stacksVal) ~= "" then
+        local sym = stacksComp
+        if sym == ">=" then sym = "≥"
+        elseif sym == "<=" then sym = "≤"
+        elseif sym == "==" then sym = "="
+        end
+        prefix = tostring(sym) .. tostring(stacksVal) .. "x"
+      end
+
+      local namePart = white .. prefix .. (niceName or "") .. "|r"
+
+      if mode == "missing" then
+        return itemPart .. " " .. sep .. wherePart .. ": " .. namePart
+      end
+
       local cdPart = yellow .. cdWord .. "|r"
-      local namePart = white .. (niceName or "") .. "|r"
       return itemPart .. " " .. sep .. wherePart .. " " .. sep .. cdPart .. ": " .. namePart
     end
   
@@ -6409,7 +6514,11 @@ do
       unit = nil
       buffType = "ABILITY"
     elseif row._branch == "ITEM" then
-      unit = row._choiceItemCd or "notcd"
+      if row._choiceMode == "missing" then
+        unit = nil
+      else
+        unit = row._choiceItemCd or "notcd"
+      end
       buffType = "ITEM"
     elseif row._branch == "TALENT" then
       -- Talent rows have no unit field; keep buffType = "TALENT"
@@ -6723,10 +6832,11 @@ do
 
         elseif row._branch == "ITEM" then
           row._choiceMode = "missing"
+          row._choiceItemCd = nil
           row._stacksEnabled = nil
           row._stacksComp = nil
           row._stacksVal  = nil
-          AuraCond_SetRowState(row, "STEP3")
+          AuraCond_SetRowState(row, "INPUT")
 
         elseif row._branch == "TALENT" then
           -- Talent: Not known
@@ -7108,26 +7218,115 @@ do
 
   local function VfxCond_InitItemDropdown(row)
     if not row or not row.itemDD then return end
-    row._itemOptions = VfxCond_BuildItemOptions()
-    UIDropDownMenu_Initialize(row.itemDD, function()
-      local i, info
-      for i = 1, table.getn(row._itemOptions) do
-        info = {}
-        info.text = row._itemOptions[i]
-        info.value = row._itemOptions[i]
-        local picked = info.value
-        info.func = function(button)
-          local val = (button and button.value) or picked
-          row._itemName = val
-          if UIDropDownMenu_SetText then pcall(UIDropDownMenu_SetText, val, row.itemDD) end
-          if _GoldifyDD then _GoldifyDD(row.itemDD) end
+
+    local items = VfxCond_BuildItemOptions()
+    row._itemOptions = items
+
+    local total = table.getn(items)
+    local perPage = 10
+
+    if total == 0 then
+      UIDropDownMenu_Initialize(row.itemDD, function() end)
+      if UIDropDownMenu_SetText then
+        pcall(UIDropDownMenu_SetText, "No items found", row.itemDD)
+      end
+      return
+    end
+
+    local maxPage = math.max(1, math.ceil(total / perPage))
+    local page = row._itemPage or 1
+    if page < 1 then page = 1 end
+    if page > maxPage then page = maxPage end
+    row._itemPage = page
+
+    local function ReopenItemDDNextFrame()
+      local f = row.itemDD and row.itemDD._reopenFrame
+      if not f then
+        f = CreateFrame("Frame", nil, UIParent)
+        if row.itemDD then
+          row.itemDD._reopenFrame = f
         end
-        info.checked = (row._itemName == info.value)
+        f:Hide()
+        f:SetScript("OnUpdate", function()
+          f:Hide()
+          if row and row.itemDD then
+            ToggleDropDownMenu(nil, nil, row.itemDD, row.itemDD, 0, 0)
+          end
+        end)
+      end
+      f:Show()
+    end
+
+    local startIndex = (page - 1) * perPage + 1
+    local endIndex = math.min(startIndex + perPage - 1, total)
+
+    UIDropDownMenu_Initialize(row.itemDD, function(frame, level, menuList)
+      local info
+
+      if page > 1 then
+        info = {}
+        info.text = "|cffffd000<< Previous|r"
+        info.value = "PREV"
+        info.notCheckable = true
+        info.func = function()
+          row._itemPage = page - 1
+          VfxCond_InitItemDropdown(row)
+          if CloseDropDownMenus then
+            CloseDropDownMenus()
+          end
+          ReopenItemDDNextFrame()
+        end
+        UIDropDownMenu_AddButton(info)
+      end
+
+      local idx = startIndex
+      while idx <= endIndex do
+        local name = items[idx]
+        info = {}
+        info.text = name
+        info.value = name
+        local pickedName = name
+        info.func = function(button)
+          local val = (button and button.value) or pickedName
+          row._itemName = val
+          if UIDropDownMenu_SetSelectedValue then
+            pcall(UIDropDownMenu_SetSelectedValue, row.itemDD, val)
+          end
+          if UIDropDownMenu_SetText then
+            pcall(UIDropDownMenu_SetText, val, row.itemDD)
+          end
+          if _GoldifyDD then
+            _GoldifyDD(row.itemDD)
+          end
+        end
+        info.checked = (row._itemName == name)
+        UIDropDownMenu_AddButton(info)
+        idx = idx + 1
+      end
+
+      if page < maxPage then
+        info = {}
+        info.text = "|cffffd000Next >>|r"
+        info.value = "NEXT"
+        info.notCheckable = true
+        info.func = function()
+          row._itemPage = page + 1
+          VfxCond_InitItemDropdown(row)
+          if CloseDropDownMenus then
+            CloseDropDownMenus()
+          end
+          ReopenItemDDNextFrame()
+        end
         UIDropDownMenu_AddButton(info)
       end
     end)
-    if UIDropDownMenu_SetText then pcall(UIDropDownMenu_SetText, row._itemName or "Select item", row.itemDD) end
-    if _GoldifyDD then _GoldifyDD(row.itemDD) end
+
+    if UIDropDownMenu_SetText then
+      pcall(UIDropDownMenu_SetText, row._itemName or "Select item", row.itemDD)
+    end
+    if _GoldifyDD then
+      _GoldifyDD(row.itemDD)
+    end
   end
 
   local function VfxCond_BuildDescription(buffType, mode, unit, name, stacksEnabled, stacksComp, stacksVal)
@@ -7172,8 +7371,24 @@ do
       local cdWord = (u == "oncd") and "On CD" or "Not on CD"
       local itemPart = yellow .. "Item" .. "|r"
       local wherePart = yellow .. whereWord .. "|r"
+
+      local prefix = ""
+      if stacksEnabled and stacksComp and stacksComp ~= "" and stacksVal and tostring(stacksVal) ~= "" then
+        local sym = stacksComp
+        if sym == ">=" then sym = "≥"
+        elseif sym == "<=" then sym = "≤"
+        elseif sym == "==" then sym = "="
+        end
+        prefix = tostring(sym) .. tostring(stacksVal) .. "x"
+      end
+
+      local namePart = white .. prefix .. (niceName or "") .. "|r"
+
+      if m == "missing" then
+        return itemPart .. " " .. sep .. wherePart .. ": " .. namePart
+      end
+
       local cdPart = yellow .. cdWord .. "|r"
-      local namePart = white .. (niceName or "") .. "|r"
       return itemPart .. " " .. sep .. wherePart .. " " .. sep .. cdPart .. ": " .. namePart
     end
   
@@ -7890,7 +8105,11 @@ do
       unit = nil
       buffType = "ABILITY"
     elseif row._branch == "ITEM" then
-      unit = row._choiceItemCd or "notcd"
+      if row._choiceMode == "missing" then
+        unit = nil
+      else
+        unit = row._choiceItemCd or "notcd"
+      end
       buffType = "ITEM"
     elseif row._branch == "TALENT" then
       unit = nil
@@ -8167,10 +8386,11 @@ do
           VfxCond_SetRowState(row, "INPUT")
         elseif row._branch == "ITEM" then
           row._choiceMode = "missing"
+          row._choiceItemCd = nil
           row._stacksEnabled = nil
           row._stacksComp = nil
           row._stacksVal  = nil
-          VfxCond_SetRowState(row, "STEP3")
+          VfxCond_SetRowState(row, "INPUT")
         elseif row._branch == "TALENT" then
           row._choiceMode = "NotKnown"
           VfxCond_SetRowState(row, "INPUT")
