@@ -1891,15 +1891,29 @@ local function _EvaluateItemCoreState(data, c)
         state.totalCount = ch
         state.effectiveCount = ch
       else
-        local slotCount = 0
-        if idx ~= nil then
-          local ok, cnt = pcall(GetInventoryItemCount, "player", idx)
+        local slotCount
+        if invSlotName == "AMMO" then
+          local ammoSlot = (GetInventorySlotInfo and GetInventorySlotInfo("AmmoSlot")) or INV_SLOT_AMMO
+          local ok, cnt = pcall(GetInventoryItemCount, "player", ammoSlot)
           if ok and cnt then
-            slotCount = cnt
+            slotCount = cnt or 0
+          else
+            slotCount = 0
           end
-        end
-        if slotCount <= 0 then
-          slotCount = 1
+          if slotCount < 0 then
+            slotCount = 0
+          end
+        else
+          slotCount = 0
+          if idx ~= nil then
+            local ok, cnt = pcall(GetInventoryItemCount, "player", idx)
+            if ok and cnt then
+              slotCount = cnt
+            end
+          end
+          if slotCount <= 0 then
+            slotCount = 1
+          end
         end
         state.eqCount = slotCount
         state.bagCount = 0

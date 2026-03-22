@@ -3368,6 +3368,7 @@ function UpdateItemStacksForMissing()
     SaveItemInventoryWeaponFromUI()
     SafeRefresh();
     SafeEvaluate()
+    UpdateCondFrameForKey(currentKey)
   end)
   condFrame.cond_item_inv_wep_offhand:SetScript("OnClick", function()
     if not currentKey then
@@ -3378,6 +3379,7 @@ function UpdateItemStacksForMissing()
     SaveItemInventoryWeaponFromUI()
     SafeRefresh();
     SafeEvaluate()
+    UpdateCondFrameForKey(currentKey)
   end)
   condFrame.cond_item_inv_wep_ranged:SetScript("OnClick", function()
     if not currentKey then
@@ -3388,6 +3390,7 @@ function UpdateItemStacksForMissing()
     SaveItemInventoryWeaponFromUI()
     SafeRefresh();
     SafeEvaluate()
+    UpdateCondFrameForKey(currentKey)
   end)
   condFrame.cond_item_inv_wep_ammo:SetScript("OnClick", function()
     if not currentKey then
@@ -3398,6 +3401,7 @@ function UpdateItemStacksForMissing()
     SaveItemInventoryWeaponFromUI()
     SafeRefresh();
     SafeEvaluate()
+    UpdateCondFrameForKey(currentKey)
   end)
 
 
@@ -9509,7 +9513,7 @@ local ic = c.item or {}
 	local isTrinketSlots = (dispName == "---EQUIPPED TRINKET SLOTS---")
 	local isWeaponSlots = (dispName == "---EQUIPPED WEAPON SLOTS---")
 
-	-- Swap "Quantity" -> "Stacks" only for weapon-slot synthetic entry WHEN mode=="notcd".
+	-- Swap "Quantity" -> "Stacks" only for main/off-hand weapon-slot entries WHEN mode=="notcd"/"both".
 	condFrame._item_qty_cb_default = condFrame._item_qty_cb_default or "Quantity"
 	condFrame._item_qty_sep_default = condFrame._item_qty_sep_default or "QUANTITY"
 
@@ -9519,7 +9523,11 @@ local ic = c.item or {}
 	  _qtyMode = "notcd"
 	end
 
-	local useStacks = (isWeaponSlots and (_qtyMode == "notcd" or _qtyMode == "both")) and true or false
+	local _qtySlot = ic.inventorySlot
+	if _qtySlot ~= "MAINHAND" and _qtySlot ~= "OFFHAND" and _qtySlot ~= "RANGED" and _qtySlot ~= "AMMO" then
+	  _qtySlot = "MAINHAND"
+	end
+	local useStacks = (isWeaponSlots and (_qtySlot == "MAINHAND" or _qtySlot == "OFFHAND") and (_qtyMode == "notcd" or _qtyMode == "both")) and true or false
 
 	if useStacks then
 	  if condFrame.cond_item_stacks_cb and condFrame.cond_item_stacks_cb.text and condFrame.cond_item_stacks_cb.text.SetText then
