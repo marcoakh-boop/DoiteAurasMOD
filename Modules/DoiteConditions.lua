@@ -1029,7 +1029,7 @@ local INV_SLOT_TRINKET2 = 14
 local INV_SLOT_MAINHAND = 16
 local INV_SLOT_OFFHAND = 17
 local INV_SLOT_RANGED = 18
-local INV_SLOT_AMMO = 0
+local INV_SLOT_AMMO = (GetInventorySlotInfo and GetInventorySlotInfo("AmmoSlot")) or 0
 
 local DOITE_ITEM_CD_IGNORE = 5.0
 
@@ -1435,7 +1435,7 @@ local function _EvaluateItemCoreState(data, c)
       local idx = _SlotIndexForName(invSlotName)
       local hasItem, onCd, rem, dur
       if invSlotName == "AMMO" then
-        hasItem = (GetInventoryItemTexture("player", INV_SLOT_AMMO) ~= nil)
+        hasItem = (GetInventoryItemTexture("player", ((GetInventorySlotInfo and GetInventorySlotInfo("AmmoSlot")) or INV_SLOT_AMMO)) ~= nil)
         onCd = false
         rem = 0
         dur = 0
@@ -1891,7 +1891,13 @@ local function _EvaluateItemCoreState(data, c)
         state.totalCount = ch
         state.effectiveCount = ch
       else
-        local slotCount = GetInventoryItemCount("player", idx) or 0
+        local slotCount = 0
+        if idx ~= nil then
+          local ok, cnt = pcall(GetInventoryItemCount, "player", idx)
+          if ok and cnt then
+            slotCount = cnt
+          end
+        end
         if slotCount <= 0 then
           slotCount = 1
         end
