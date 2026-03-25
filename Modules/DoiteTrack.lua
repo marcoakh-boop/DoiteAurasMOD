@@ -623,7 +623,7 @@ local _MoltenBlastSpellIdCache = {} -- [spellId] = true/false
 _IsPlayerDruid = false
 _IsPlayerRogue = false
 local _CarnageRank = 0             -- druid: >0 enables Carnage proc logic
-local _TasteForBloodRank = 0       -- rogue: 0..3, adds +2s per point to manual Rupture
+local _TasteForBloodRank = 0       -- rogue: 0..2, adds +2s per point to manual Rupture
 local _ImprovedBladeTacticsRank = 0 -- rogue: 0..3, +15/30/45% to Slice and Dice manual duration
 
 -- Druid Carnage proc detection
