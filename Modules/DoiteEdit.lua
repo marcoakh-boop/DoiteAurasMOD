@@ -54,7 +54,7 @@ local function _NormalizeFadeBox(box, alpha)
 end
 
 local SOUND_FILES = {
-  "JDO - Dont move, Shackles.ogg", "JDO - Loot banned.ogg", "Trend - Uwu.ogg",
+  "JDO - Dont move, Shackles.ogg", "JDO - Loot banned.ogg", "Trend - Uwu.ogg", "Custom - Poison ammo.ogg", "Custom - Arcane ammo.ogg", "Custom - Explosive ammo.ogg", "Custom - Lock n Load.ogg",
   "MPOWA - Aggro.ogg", "MPOWA - Arrow Swoosh.ogg", "MPOWA - Bam.ogg", "MPOWA - Bigkiss.ogg", "MPOWA - Bite.ogg", "MPOWA - Burp.ogg", "MPOWA - Cat.ogg", "MPOWA - Chant (1).ogg", "MPOWA - Chant (2).ogg", "MPOWA - Chimes.ogg", "MPOWA - Cookie.ogg", "MPOWA - ESpark.ogg", "MPOWA - Fireball.ogg", "MPOWA - Gasp.ogg",
   "MPOWA - Heartbeat.ogg", "MPOWA - Hic.ogg", "MPOWA - Hit (1).ogg", "MPOWA - Hit (2).ogg", "MPOWA - Hit (3).ogg", "MPOWA - Hit (4).ogg", "MPOWA - Hit (5).ogg", "MPOWA - Hit (6).ogg", "MPOWA - Hit (7).ogg", "MPOWA - Hit (8).ogg",
   "MPOWA - Huh.ogg", "MPOWA - Hurricane.ogg", "MPOWA - Hyena.ogg", "MPOWA - Kaching.ogg", "MPOWA - Moan.ogg", "MPOWA - Panther.ogg", "MPOWA - Polarbear.ogg", "MPOWA - Punch.ogg", "MPOWA - Phone.ogg",

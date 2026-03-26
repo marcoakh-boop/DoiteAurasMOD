@@ -3988,7 +3988,7 @@ _daVer:SetScript("OnEvent", function()
         _daVerNotifiedOnce = true
         DA_RunLater(8, function()
           if cf then
-            cf:AddMessage(string.format("|cff6FA8DCDoiteAuras:|r A newer version is available (yours: %s, latest seen: %s). Consider updating.", tostring(mine), tostring(other)))
+            cf:AddMessage(string.format("|cff6FA8DCDoiteAuras:|r A newer version is available (yours: %s, latest seen: %s). Consider updating: https://github.com/Player-Doite/DoiteAuras", tostring(mine), tostring(other)))
           end
         end)
       end
@@ -4004,7 +4004,7 @@ _daVer:SetScript("OnEvent", function()
       _daVerNotifiedOnce = true
       DA_RunLater(8, function()
         if cf then
-          cf:AddMessage(string.format("|cff6FA8DCDoiteAuras:|r A newer version is available (yours: %s, latest seen: %s). Consider updating.", tostring(mine), tostring(other)))
+          cf:AddMessage(string.format("|cff6FA8DCDoiteAuras:|r A newer version is available (yours: %s, latest seen: %s). Consider updating: https://github.com/Player-Doite/DoiteAuras", tostring(mine), tostring(other)))
         end
       end)
     end
