@@ -2602,6 +2602,18 @@ local function _PlayerAuraRemainingSeconds(auraName, auraSpellId, addedViaSpellI
     end
   end
 
+  -- Fallback: use expiration stored from AURA_CAST_ON_SELF (covers Turtle WoW custom buffs)
+  local sid = tonumber(auraSpellId) or 0
+  if sid > 0 and DoitePlayerAuras.customBuffExpirationTime then
+    local expireAt = DoitePlayerAuras.customBuffExpirationTime[sid]
+    if expireAt and expireAt > 0 then
+      local remaining = expireAt - GetTime()
+      if remaining > 0 then
+        return remaining
+      end
+    end
+  end
+
   if not useSpellIdOnly then
     local remaining = DoitePlayerAuras.GetHiddenBuffRemaining(auraName)
     if remaining and remaining > 0 then
@@ -8079,6 +8091,9 @@ eventFrame:SetScript("OnEvent", function()
     if arg1 == "player" then
       dirty_aura = true
       dirty_ability = true
+      if DoitePlayerAuras and DoitePlayerAuras.ForceRefresh then
+        DoitePlayerAuras.ForceRefresh()
+      end
 
     elseif arg1 == "target" then
       -- Only bother if *any* config ever looks at target auras.

@@ -22,6 +22,7 @@ local DoitePlayerAuras = {
 
   cappedBuffsExpirationTime = {}, -- spell name -> expiration time in seconds
   cappedBuffsStacks = {}, -- spell name -> stacks
+  customBuffExpirationTime = {}, -- spellId -> expiration time (GetTime scale), all buffs
 
   playerBuffIndexCache = {}, -- spell name -> player buff index (for GetPlayerBuffX functions)
 
@@ -469,10 +470,17 @@ end)
 
 -- Frame for AURA_CAST_ON_SELF event (dynamically registered during buff cap)
 local AuraCastFrame = CreateFrame("Frame", "DoitePlayerAuras_AuraCast")
+-- Always register to capture duration for ALL buffs (including Turtle WoW custom ones)
+AuraCastFrame:RegisterEvent("AURA_CAST_ON_SELF")
 AuraCastFrame:SetScript("OnEvent", function()
   -- only care about buffs when at buff cap
   -- int auraCapStatus - bitfield: 1 = buff bar full, 2 = debuff bar full (3 means both)
   local spellId, durationMs, auraCapStatus = arg1, arg8, arg9
+
+  -- Always store expiration time for timer display (Turtle WoW custom buff support)
+  if spellId and spellId ~= 0 and durationMs and durationMs > 0 then
+    DoitePlayerAuras.customBuffExpirationTime[spellId] = GetTime() + durationMs / 1000.0
+  end
 
   local applyCappedBuff = auraCapStatus == 1 or auraCapStatus == 3 or DoitePlayerAuras.debugBuffCap
 
@@ -617,4 +625,9 @@ function DoitePlayerAuras.ToggleDebugBuffCap()
 	UpdateAuras()
     print("DoitePlayerAuras: Debug buff cap disabled")
   end
+end
+
+-- Public wrapper for DoiteConditions UNIT_AURA handler
+function DoitePlayerAuras.ForceRefresh()
+  UpdateAuras()
 end
