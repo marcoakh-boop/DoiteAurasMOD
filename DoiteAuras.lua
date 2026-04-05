@@ -3983,39 +3983,14 @@ _daVer:SetScript("OnEvent", function()
         cf:AddMessage(string.format("|cff6FA8DCDoiteAuras:|r %s has %s (you: %s)", tostring(sender or "?"), tostring(other or "?"), tostring(mine)))
       end
 
-      -- notify once if theirs is newer than mine (requester-only)
-      if (not _daVerNotifiedOnce) and DA_IsNewer(other, mine) then
-        _daVerNotifiedOnce = true
-        DA_RunLater(8, function()
-          if cf then
-            cf:AddMessage(string.format("|cff6FA8DCDoiteAuras:|r A newer version is available (yours: %s, latest seen: %s). Consider updating: https://github.com/marcoakh-boop/DoiteAurasMOD", tostring(mine), tostring(other)))
-          end
-        end)
-      end
+      -- MOD: version upgrade notification disabled (independent versioning)
     end
 
     return
   end
 
   if string.sub(text, 1, 7) == "DA_VER:" then
-    local other = string.sub(text, 8)
-    -- notify once if theirs is newer than mine
-    if (not _daVerNotifiedOnce) and DA_IsNewer(other, mine) then
-      _daVerNotifiedOnce = true
-      DA_RunLater(8, function()
-        if cf then
-          cf:AddMessage(string.format("|cff6FA8DCDoiteAuras:|r A newer version is available (yours: %s, latest seen: %s). Consider updating: https://github.com/marcoakh-boop/DoiteAurasMOD", tostring(mine), tostring(other)))
-        end
-      end)
-    end
-    -- echo mine back (rate-limited) so others see my version too
-    if channel and SendAddonMessage then
-      local now = (GetTime and GetTime()) or 0
-      if now - _daVerLastEcho > 10 then
-        _daVerLastEcho = now
-        SendAddonMessage(DA_PREFIX, "DA_VER:" .. mine, channel)
-      end
-    end
+    -- MOD: version comparison and echo disabled (independent versioning)
     return
   end
 end)
@@ -4062,21 +4037,10 @@ _daLoad:SetScript("OnEvent", function()
     end)
 
   elseif event == "PLAYER_ENTERING_WORLD" then
-    -- 10s after entering world: broadcast my version to an available channel
-    DA_RunLater(10, function()
-      DA_BroadcastVersionAll()
-    end)
+    -- MOD: version broadcast disabled (independent versioning from original DoiteAuras)
 
   elseif event == "RAID_ROSTER_UPDATE" then
-    -- first time player are in a raid: announce on RAID after ~3s
-    if not _daRaidAnnounced and UnitInRaid and UnitInRaid("player") then
-      _daRaidAnnounced = true
-      DA_RunLater(3, function()
-        if SendAddonMessage then
-          SendAddonMessage("DOITEAURAS", "DA_VER:"..tostring(DA_GetVersion_Safe()), "RAID")
-        end
-      end)
-    end
+    -- MOD: raid version announce disabled
   end
 end)
 
